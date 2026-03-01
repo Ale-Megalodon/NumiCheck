@@ -45,3 +45,13 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
 - Login actualizado para usar siempre BrandWordmark (sin imagen logo_letras).
 - Se elimino estilo no usado de auth-logo-image.
 - Build web validado correctamente.
+[2026-03-01 | Bloque 1 - Fase 3 | Pausa post-letras]
+- Splash ajustado para mantener 3s de pausa luego del despliegue de letras.
+- Timeline final:
+  - 2.0s inicia slide de letras
+  - 2.55s letras desplegadas
+  - 2.55s a 5.55s pausa
+  - 5.55s inicia fade del splash
+  - 6.5s transicion completa a login
+- Splash usa logo de imagen fijo: /img/logoNumiCheck.png
+- Build validado correctamente.

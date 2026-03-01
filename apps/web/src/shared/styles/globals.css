@@ -34,8 +34,8 @@ body {
   display: grid;
   place-items: center;
   background: #ffffff;
-  animation: splash-fade-out 3s ease forwards;
-  animation-delay: 1.5s;
+  animation: splash-fade-out 0.95s ease forwards;
+  animation-delay: 5.55s;
   z-index: 20;
 }
 
@@ -49,19 +49,6 @@ body {
   width: 96px;
   height: 96px;
   object-fit: contain;
-  animation: splash-logo-bounce 0.9s ease-in-out infinite;
-}
-
-.splash-logo-fallback {
-  width: 96px;
-  height: 96px;
-  border-radius: 24px;
-  display: grid;
-  place-items: center;
-  background: var(--brand-primary);
-  color: #ffffff;
-  font-size: 2.1rem;
-  font-weight: 700;
   animation: splash-logo-bounce 0.9s ease-in-out infinite;
 }
 
@@ -271,7 +258,6 @@ body {
 
   .splash-screen,
   .splash-logo-image,
-  .splash-logo-fallback,
   .splash-wordmark,
   .skeleton {
     animation: none;
