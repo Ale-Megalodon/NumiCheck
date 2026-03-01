@@ -532,13 +532,3 @@ body {
     transform: none;
   }
 }
-
-@media (max-width: 720px) {
-  .banknotes-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .banknote-tile--50 {
-    width: 100%;
-  }
-}

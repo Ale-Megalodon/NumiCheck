@@ -122,3 +122,6 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
 - Home publica inicia con texto: "¿Qué billete deseas escanear?".
 - Billetes redisenados: 10 y 20 arriba, 50 abajo; imagen ocupa todo el bloque animado; etiqueta fuera del cuadro.
 - Build web validado correctamente.
+[2026-03-01 | Fase 0 | Ajuste layout final]
+- Se mantiene siempre la distribucion: 10/20 arriba y 50 abajo (sin colapsar a una sola columna).
+- Build web validado correctamente.
