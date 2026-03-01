@@ -55,3 +55,10 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
   - 6.5s transicion completa a login
 - Splash usa logo de imagen fijo: /img/logoNumiCheck.png
 - Build validado correctamente.
+[2026-03-01 | Bloque 1 - Fase 3.4 | Correcciones finales]
+- Ruta de logo splash corregida a /img/logoNumiCheck.jpeg.
+- Archivo de imagen copiado a apps/web/public/img/logoNumiCheck.jpeg.
+- En refresh (reload) se omite splash y se muestra flujo directo de login/app segun sesion.
+- BrandWordmark protegido contra traduccion automatica (translate="no", class notranslate, lang zxx).
+- Index agrega meta google notranslate.
+- Build web validado correctamente.
