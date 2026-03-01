@@ -8,7 +8,6 @@ export function LoginPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loadingProvider, setLoadingProvider] = useState<"google" | "facebook" | null>(null);
   const [uiLoading, setUiLoading] = useState(true);
-  const [logoError, setLogoError] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -42,16 +41,7 @@ export function LoginPage() {
           <LoginSkeleton />
         ) : (
           <>
-            {logoError ? (
-              <BrandWordmark className="auth-title-logo" weight="bold" />
-            ) : (
-              <img
-                className="auth-logo-image"
-                src="/img/logo_letras.png"
-                alt="NumiCheck"
-                onError={() => setLogoError(true)}
-              />
-            )}
+            <BrandWordmark className="auth-title-logo" weight="bold" />
             <p className="auth-subtitle">Accede para validar billetes por numero de serie.</p>
 
             <button

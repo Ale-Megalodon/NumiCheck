@@ -14,7 +14,7 @@ export function SplashScreen() {
         ) : (
           <img
             className="splash-logo-image"
-            src="/img/logo.png"
+            src="/img/logoNumiCheck.png"
             alt="Logo NumiCheck"
             onError={() => setLogoError(true)}
           />

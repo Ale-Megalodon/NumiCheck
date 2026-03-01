@@ -34,8 +34,8 @@ body {
   display: grid;
   place-items: center;
   background: #ffffff;
-  animation: splash-fade-out 0.35s ease forwards;
-  animation-delay: 1.15s;
+  animation: splash-fade-out 3s ease forwards;
+  animation-delay: 1.5s;
   z-index: 20;
 }
 
@@ -68,8 +68,8 @@ body {
 .splash-wordmark {
   opacity: 0;
   transform: translateX(-24px);
-  animation: splash-wordmark-slide 0.45s ease-out forwards;
-  animation-delay: 1s;
+  animation: splash-wordmark-slide 0.55s ease-out forwards;
+  animation-delay: 2s;
 }
 
 .auth-page,
@@ -96,13 +96,6 @@ body {
 .auth-subtitle {
   margin: 0;
   color: #4f6572;
-}
-
-.auth-logo-image {
-  width: min(260px, 82%);
-  margin: 0 auto 0.2rem;
-  display: block;
-  object-fit: contain;
 }
 
 .auth-button {

@@ -34,3 +34,14 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
 - Login usa /img/logo_letras.png con fallback tipografico si falta el asset.
 - Se agregaron Skeletons para logo y botones durante carga de login y estado auth.
 - Build web validado correctamente.
+[2026-03-01 | Bloque 1 - Fase 3 | Ajuste de timing]
+- Splash total ajustado a 4.5s.
+- Deslizamiento de letras ajustado a inicio en 2.0s.
+- Fade del splash inicia en 1.5s y termina en 4.5s (fade largo y suave).
+- Build web validado correctamente tras ajustes.
+[2026-03-01 | Bloque 1 - Fase 3 | Ruta logo splash]
+- Ruta del logo splash actualizada a /img/logoNumiCheck.png
+[2026-03-01 | Bloque 1 - Fase 3 | Logo letras tipografico]
+- Login actualizado para usar siempre BrandWordmark (sin imagen logo_letras).
+- Se elimino estilo no usado de auth-logo-image.
+- Build web validado correctamente.

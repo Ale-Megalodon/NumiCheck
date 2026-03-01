@@ -8,7 +8,7 @@ export function AppEntry() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setShowSplash(false);
-    }, 1500);
+    }, 4500);
 
     return () => window.clearTimeout(timer);
   }, []);
