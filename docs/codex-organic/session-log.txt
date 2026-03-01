@@ -90,3 +90,10 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
 - AuthProvider con fail-safe de 5s y callback de error para evitar loading indefinido.
 - Se agrega AppErrorBoundary con fallback de recarga en crash UI.
 - Build web validado correctamente.
+[2026-03-01 | Bloque 1 | Fase final 1 aplicada]
+- Lógica de intro por estado:
+  - Primer ingreso sin sesion: splash largo 4s.
+  - Reingreso con sesion activa: splash corto 1.5s (bombeo corazon).
+  - Sin sesion y visita posterior: login directo.
+- Splash ahora soporta modos long/short.
+- Build web validado correctamente.

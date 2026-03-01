@@ -34,8 +34,6 @@ body {
   display: grid;
   place-items: center;
   background: #ffffff;
-  animation: splash-fade-out 0.7s ease forwards;
-  animation-delay: 3.8s;
   z-index: 20;
 }
 
@@ -49,12 +47,39 @@ body {
   width: clamp(148px, 34vw, 188px);
   height: clamp(148px, 34vw, 188px);
   object-fit: contain;
-  animation:
-    splash-logo-enter 1s ease-out both,
-    splash-logo-float 2.8s ease-in-out 1s infinite;
 }
 
 .splash-wordmark {
+  opacity: 0;
+  transform: translateX(-28px);
+}
+
+.splash-screen--long {
+  animation: splash-fade-out 0.55s ease forwards;
+  animation-delay: 3.45s;
+}
+
+.splash-screen--long .splash-logo-image {
+  animation:
+    splash-logo-enter 1s ease-out both,
+    splash-logo-float 2.4s ease-in-out 1s infinite;
+}
+
+.splash-screen--long .splash-wordmark {
+  animation: splash-wordmark-slide 0.5s ease-out forwards;
+  animation-delay: 1.05s;
+}
+
+.splash-screen--short {
+  animation: splash-fade-out 0.35s ease forwards;
+  animation-delay: 1.15s;
+}
+
+.splash-screen--short .splash-logo-image {
+  animation: splash-logo-heartbeat 1.2s ease-in-out infinite;
+}
+
+.splash-screen--short .splash-wordmark {
   opacity: 1;
   transform: translateX(0);
 }
@@ -301,6 +326,25 @@ body {
 
   50% {
     transform: translateY(-10px);
+  }
+}
+
+@keyframes splash-logo-heartbeat {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  20% {
+    transform: scale(1.07);
+  }
+
+  36% {
+    transform: scale(0.99);
+  }
+
+  54% {
+    transform: scale(1.04);
   }
 }
 
