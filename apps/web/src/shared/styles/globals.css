@@ -195,6 +195,66 @@ body {
   gap: 0.25rem;
 }
 
+.admin-input {
+  width: 100%;
+  border: 1px solid #cedbe1;
+  border-radius: 8px;
+  padding: 0.48rem 0.56rem;
+  font: inherit;
+  color: var(--brand-primary);
+  background: #ffffff;
+}
+
+.admin-input:focus {
+  outline: 2px solid rgba(42, 157, 143, 0.35);
+  outline-offset: 1px;
+}
+
+.admin-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.admin-switch input {
+  accent-color: var(--brand-primary);
+}
+
+.admin-row-invalid td {
+  background: #fff4f4;
+}
+
+.admin-note {
+  margin: 0.8rem 0 0;
+  font-size: 0.9rem;
+  color: #566b76;
+}
+
+.admin-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.admin-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.admin-field span {
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.admin-quick-actions {
+  margin-top: 0.8rem;
+}
+
+.admin-test-result {
+  margin: 0.8rem 0 0;
+  font-weight: 700;
+}
+
 .public-shell {
   width: 100%;
   max-width: 860px;
@@ -624,5 +684,11 @@ body {
   .splash-logo-image,
   .splash-wordmark {
     transform: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-quick-grid {
+    grid-template-columns: 1fr;
   }
 }

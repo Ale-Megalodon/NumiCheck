@@ -135,3 +135,13 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
 - Info muestra numero de consultas y datos base de usuario.
 - Se integra almacenamiento local de usuarios admin en localStorage.
 - Build web validado correctamente.
+[2026-03-01 | Fase B | Tablas editables + motor Serie B]
+- Se crea store de rangos ilegales por denominacion con datos base exactos 10/20/50 Bs.
+- Persistencia localStorage para edicion en panel admin.
+- Funciones de motor de verificacion:
+  - evaluateSeriesAgainstIllegalRanges(denominacion, serie)
+  - Reglas: solo Serie B, comparacion inclusiva inicio<=x<=fin.
+- Se agrega editor de rangos en panel admin (agregar/editar/activar/eliminar).
+- Se agrega prueba rapida en panel admin para validar una serie contra la tabla seleccionada.
+- Boton para restaurar rangos base originales.
+- Build web validado correctamente.
