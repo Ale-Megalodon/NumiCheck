@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
+import { LoginSkeleton } from "../../modules/auth/components/LoginSkeleton";
 import { LoginPage } from "../../modules/auth/pages/LoginPage";
 import { HomePage } from "../../modules/home/pages/HomePage";
 import { useAuth } from "../providers/AuthProvider";
@@ -8,7 +9,13 @@ function ProtectedRoute({ children }: { children: ReactElement }) {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div className="status-screen">Loading session...</div>;
+    return (
+      <main className="auth-page">
+        <section className="auth-card">
+          <LoginSkeleton />
+        </section>
+      </main>
+    );
   }
 
   if (!user) {
@@ -22,7 +29,13 @@ function PublicRoute({ children }: { children: ReactElement }) {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div className="status-screen">Loading session...</div>;
+    return (
+      <main className="auth-page">
+        <section className="auth-card">
+          <LoginSkeleton />
+        </section>
+      </main>
+    );
   }
 
   if (user) {

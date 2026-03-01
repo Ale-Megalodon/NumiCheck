@@ -16,3 +16,21 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
 - Se agrego boton de cierre de sesion.
 - Se agrego .env.example para credenciales Firebase.
 - Pendiente de validacion en runtime por falta de Node/npm en el entorno actual.
+[2026-03-01 | Bloque 1 - Fase 2]
+- Se creo componente reutilizable de marca: BrandWordmark.
+- Paleta aplicada:
+  - Texto principal #264653
+  - Punto de la i #2A9D8F
+- Punto de la i con animacion de rebote continua.
+- Tipografia definida con Montserrat (600/700).
+- Integrado en login y pantalla siguiente (Proximo!) para reuso.
+- Build de apps/web exitoso.
+[2026-03-01 | Bloque 1 - Fase 3]
+- Se implemento SplashScreen de 1.5s antes del enrutado principal.
+- 3.1: logo central con efecto bounce.
+- 3.2: letras de marca con slide izquierda->derecha al segundo 1.0.
+- 3.3: fade-out completo del splash al segundo 1.5.
+- 3.4/3.5: login limpio en fondo blanco con solo Google/Facebook.
+- Login usa /img/logo_letras.png con fallback tipografico si falta el asset.
+- Se agregaron Skeletons para logo y botones durante carga de login y estado auth.
+- Build web validado correctamente.
