@@ -103,3 +103,12 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
 - Con sesion => splash corta y luego /app.
 - Se mantiene BrandWordmark (letras NumiCheck) dentro del splash.
 - Build web validado correctamente.
+[2026-03-01 | Pivot interfaz web publica]
+- Web ahora inicia sin login obligatorio.
+- Splash unificado de 1.2s para todos los usuarios.
+- Nueva home publica con logo + letras arriba y menu hamburguesa (solo Iniciar sesion).
+- Billetes 10/20/50 cargados desde variables y con animacion de crecer/achicar.
+- Click en billete navega a pagina personalizada por denominacion.
+- Paginas de denominacion mantienen menu hamburguesa y texto centrado (10 bs, 20 bs, 50 bs).
+- Se copian imagenes a public/img: 10bs.jpeg, 20bs.jpeg, 50bs.jpeg.
+- Build web validado correctamente.

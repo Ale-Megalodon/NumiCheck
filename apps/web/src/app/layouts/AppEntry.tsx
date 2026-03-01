@@ -1,44 +1,20 @@
 import { useEffect, useState } from "react";
 import { AppRouter } from "../router/AppRouter";
 import { SplashScreen } from "../../shared/components/ui/SplashScreen";
-import { useAuth } from "../providers/AuthProvider";
 
 export function AppEntry() {
-  const { user, loading } = useAuth();
-  const [splashMode, setSplashMode] = useState<"pending" | "none" | "long" | "short">("pending");
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
-    if (loading) {
-      return;
-    }
-
-    if (user) {
-      setSplashMode("short");
-      return;
-    }
-
-    setSplashMode("long");
-  }, [loading, user]);
-
-  useEffect(() => {
-    if (splashMode === "none" || splashMode === "pending") {
-      return;
-    }
-
-    const duration = splashMode === "long" ? 4000 : 1500;
     const timer = window.setTimeout(() => {
-      setSplashMode("none");
-    }, duration);
+      setShowSplash(false);
+    }, 1200);
 
     return () => window.clearTimeout(timer);
-  }, [splashMode]);
+  }, []);
 
-  if (splashMode === "pending") {
-    return <div className="status-screen">Cargando...</div>;
-  }
-
-  if (splashMode === "long" || splashMode === "short") {
-    return <SplashScreen mode={splashMode} />;
+  if (showSplash) {
+    return <SplashScreen mode="short" />;
   }
 
   return <AppRouter />;

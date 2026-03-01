@@ -3,9 +3,11 @@
 :root {
   --brand-primary: #264653;
   --brand-accent: #2a9d8f;
+  --surface: #ffffff;
+  --surface-soft: #f3f7f8;
   font-family: Montserrat, "Segoe UI", sans-serif;
   color: var(--brand-primary);
-  background-color: #ffffff;
+  background-color: var(--surface);
 }
 
 * {
@@ -71,8 +73,8 @@ body {
 }
 
 .splash-screen--short {
-  animation: splash-fade-out 0.35s ease forwards;
-  animation-delay: 1.15s;
+  animation: splash-fade-out 0.2s ease forwards;
+  animation-delay: 1s;
 }
 
 .splash-screen--short .splash-logo-image {
@@ -91,6 +93,46 @@ body {
   place-items: center;
   padding: 1rem;
   background: #ffffff;
+}
+
+.public-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #ffffff 0%, #f3f7f8 100%);
+  padding: 0.9rem;
+}
+
+.public-shell {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.public-header {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  min-height: 52px;
+}
+
+.public-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.public-brand-logo {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.public-brand-wordmark {
+  margin: 0;
+}
+
+.public-menu-wrap {
+  position: relative;
 }
 
 .auth-card,
@@ -134,6 +176,28 @@ body {
   cursor: pointer;
 }
 
+.menu-toggle--icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 5px;
+  padding: 0;
+}
+
+.menu-toggle--icon span {
+  width: 20px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--brand-primary);
+}
+
+.public-menu {
+  left: 0;
+  right: auto;
+}
+
 .home-menu {
   position: absolute;
   right: 0;
@@ -166,6 +230,58 @@ body {
 
 .home-menu-item--danger {
   color: #a0272a;
+}
+
+.banknotes-grid {
+  margin-top: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.banknote-card {
+  border: 1px solid #d9e3e6;
+  border-radius: 16px;
+  background: var(--surface);
+  padding: 0.75rem 0.5rem;
+  display: grid;
+  gap: 0.45rem;
+  justify-items: center;
+  cursor: pointer;
+  animation: banknote-pulse 1.9s ease-in-out infinite;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.banknote-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 22px rgba(38, 70, 83, 0.12);
+}
+
+.banknote-image {
+  width: 100%;
+  max-width: 150px;
+  aspect-ratio: 16 / 8;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.banknote-label {
+  color: var(--brand-primary);
+  font-weight: 700;
+  font-size: 0.96rem;
+}
+
+.denomination-placeholder {
+  min-height: calc(100vh - 120px);
+  display: grid;
+  place-items: center;
+}
+
+.denomination-placeholder h1 {
+  margin: 0;
+  font-size: clamp(2rem, 9vw, 3.8rem);
+  color: var(--brand-primary);
+  text-transform: lowercase;
 }
 
 .auth-subtitle {
@@ -358,6 +474,17 @@ body {
   }
 }
 
+@keyframes banknote-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.05);
+  }
+}
+
 @keyframes skeleton-shimmer {
   0% {
     background-position: 200% 0;
@@ -376,6 +503,7 @@ body {
   .splash-screen,
   .splash-logo-image,
   .splash-wordmark,
+  .banknote-card,
   .skeleton {
     animation: none;
   }
