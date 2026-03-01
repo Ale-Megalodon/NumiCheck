@@ -85,3 +85,8 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
 - Se quita animacion extra de letras para evitar efecto raro.
 - Duracion total de splash ajustada a 4.5s para reducir pantalla blanca percibida.
 - Build web validado correctamente.
+[2026-03-01 | Bloque 1 | P0 pantalla blanca]
+- Router migrado a HashRouter para eliminar dependencia de rewrites en refresh de Render.
+- AuthProvider con fail-safe de 5s y callback de error para evitar loading indefinido.
+- Se agrega AppErrorBoundary con fallback de recarga en crash UI.
+- Build web validado correctamente.

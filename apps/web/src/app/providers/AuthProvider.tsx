@@ -26,12 +26,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(firebaseAuth, (nextUser) => {
-      setUser(nextUser);
+    // Avoid blank/blocked states if auth listeners fail in hostile networks.
+    const failSafeTimer = window.setTimeout(() => {
       setLoading(false);
-    });
+    }, 5000);
 
-    return () => unsubscribe();
+    const unsubscribe = onAuthStateChanged(
+      firebaseAuth,
+      (nextUser) => {
+        setUser(nextUser);
+        setLoading(false);
+        window.clearTimeout(failSafeTimer);
+      },
+      () => {
+        setUser(null);
+        setLoading(false);
+        window.clearTimeout(failSafeTimer);
+      }
+    );
+
+    return () => {
+      window.clearTimeout(failSafeTimer);
+      unsubscribe();
+    };
   }, []);
 
   const value = useMemo<AuthContextValue>(
