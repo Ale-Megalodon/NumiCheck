@@ -97,3 +97,9 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
   - Sin sesion y visita posterior: login directo.
 - Splash ahora soporta modos long/short.
 - Build web validado correctamente.
+[2026-03-01 | Bloque 1 | Ajuste final de intro]
+- Se elimina regla de login directo sin sesion.
+- Ahora: sin sesion => splash larga siempre.
+- Con sesion => splash corta y luego /app.
+- Se mantiene BrandWordmark (letras NumiCheck) dentro del splash.
+- Build web validado correctamente.

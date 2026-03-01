@@ -12,20 +12,12 @@ export function AppEntry() {
       return;
     }
 
-    const hasSeenApp = window.localStorage.getItem("numicheck_seen_once") === "1";
-
-    if (!hasSeenApp && !user) {
-      window.localStorage.setItem("numicheck_seen_once", "1");
-      setSplashMode("long");
-      return;
-    }
-
     if (user) {
       setSplashMode("short");
       return;
     }
 
-    setSplashMode("none");
+    setSplashMode("long");
   }, [loading, user]);
 
   useEffect(() => {
