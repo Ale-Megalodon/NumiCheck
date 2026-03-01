@@ -10,6 +10,7 @@ import type { User } from "firebase/auth";
 import { onAuthStateChanged } from "firebase/auth";
 import { firebaseAuth } from "../../shared/config/firebase";
 import { signInWithFacebook, signInWithGoogle, signOutUser } from "../../modules/auth/services/auth.service";
+import { upsertAdminUserFromAuth } from "../../modules/admin/services/adminUsersStore";
 
 type AuthContextValue = {
   user: User | null;
@@ -35,6 +36,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       firebaseAuth,
       (nextUser) => {
         setUser(nextUser);
+        if (nextUser) {
+          upsertAdminUserFromAuth(nextUser);
+        }
         setLoading(false);
         window.clearTimeout(failSafeTimer);
       },

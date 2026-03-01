@@ -125,3 +125,13 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
 [2026-03-01 | Fase 0 | Ajuste layout final]
 - Se mantiene siempre la distribucion: 10/20 arriba y 50 abajo (sin colapsar a una sola columna).
 - Build web validado correctamente.
+[2026-03-01 | Bloque A | Panel admin secreto]
+- Se crea ruta secreta admin: /control-interno-nc-a73k9q
+- Ruta admin sin splash de carga.
+- Panel "PANEL DE ADMINISTRADOR" con estilo consistente a la web principal.
+- Tabla de usuarios registrados (capturados desde inicios de sesion en la app):
+  - Info
+  - Eliminar
+- Info muestra numero de consultas y datos base de usuario.
+- Se integra almacenamiento local de usuarios admin en localStorage.
+- Build web validado correctamente.
