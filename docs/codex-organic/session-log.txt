@@ -79,3 +79,9 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
 - Se agregan CTAs principales: Escanear billete / Ingresar manualmente.
 - Estilos mobile-first para home y menu.
 - Build web validado correctamente.
+[2026-03-01 | Bloque 1 - Fase 3.5 | Ajuste final animacion]
+- Splash simplificado: logo entra desde la izquierda en 1s y luego solo sube/baja lento.
+- Logo splash aumentado de tamano.
+- Se quita animacion extra de letras para evitar efecto raro.
+- Duracion total de splash ajustada a 4.5s para reducir pantalla blanca percibida.
+- Build web validado correctamente.

@@ -34,8 +34,8 @@ body {
   display: grid;
   place-items: center;
   background: #ffffff;
-  animation: splash-fade-out 0.95s ease forwards;
-  animation-delay: 5.55s;
+  animation: splash-fade-out 0.7s ease forwards;
+  animation-delay: 3.8s;
   z-index: 20;
 }
 
@@ -46,17 +46,17 @@ body {
 }
 
 .splash-logo-image {
-  width: clamp(128px, 30vw, 168px);
-  height: clamp(128px, 30vw, 168px);
+  width: clamp(148px, 34vw, 188px);
+  height: clamp(148px, 34vw, 188px);
   object-fit: contain;
-  animation: splash-logo-bounce 1.8s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
+  animation:
+    splash-logo-enter 1s ease-out both,
+    splash-logo-float 2.8s ease-in-out 1s infinite;
 }
 
 .splash-wordmark {
-  opacity: 0;
-  transform: translateX(-24px);
-  animation: splash-wordmark-slide 0.55s ease-out forwards;
-  animation-delay: 2s;
+  opacity: 1;
+  transform: translateX(0);
 }
 
 .auth-page,
@@ -283,34 +283,24 @@ body {
   }
 }
 
-@keyframes splash-logo-bounce {
-  0%,
+@keyframes splash-logo-enter {
+  0% {
+    transform: translateX(-120px);
+  }
+
   100% {
-    transform: translateY(0) scale(1);
-  }
-
-  25% {
-    transform: translateY(-9px) scale(1.01);
-  }
-
-  52% {
-    transform: translateY(-2px) scale(0.997);
-  }
-
-  68% {
-    transform: translateY(-5px) scale(1);
+    transform: translateX(0);
   }
 }
 
-@keyframes splash-wordmark-slide {
-  0% {
-    opacity: 0;
-    transform: translateX(-24px);
+@keyframes splash-logo-float {
+  0%,
+  100% {
+    transform: translateY(0);
   }
 
-  100% {
-    opacity: 1;
-    transform: translateX(0);
+  50% {
+    transform: translateY(-10px);
   }
 }
 
@@ -344,5 +334,10 @@ body {
   .splash-wordmark,
   .skeleton {
     animation: none;
+  }
+
+  .splash-logo-image,
+  .splash-wordmark {
+    transform: none;
   }
 }
