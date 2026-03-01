@@ -5,6 +5,22 @@ import { LoginPage } from "../../modules/auth/pages/LoginPage";
 import { HomePage } from "../../modules/home/pages/HomePage";
 import { useAuth } from "../providers/AuthProvider";
 
+function AuthLandingRoute() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <main className="auth-page">
+        <section className="auth-card">
+          <LoginSkeleton />
+        </section>
+      </main>
+    );
+  }
+
+  return <Navigate to={user ? "/app" : "/login"} replace />;
+}
+
 function ProtectedRoute({ children }: { children: ReactElement }) {
   const { user, loading } = useAuth();
 
@@ -48,6 +64,7 @@ function PublicRoute({ children }: { children: ReactElement }) {
 export function AppRouter() {
   return (
     <Routes>
+      <Route path="/" element={<AuthLandingRoute />} />
       <Route
         path="/login"
         element={
@@ -64,7 +81,7 @@ export function AppRouter() {
           </ProtectedRoute>
         }
       />
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

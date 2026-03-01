@@ -46,10 +46,10 @@ body {
 }
 
 .splash-logo-image {
-  width: 96px;
-  height: 96px;
+  width: clamp(128px, 30vw, 168px);
+  height: clamp(128px, 30vw, 168px);
   object-fit: contain;
-  animation: splash-logo-bounce 0.9s ease-in-out infinite;
+  animation: splash-logo-bounce 1.8s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
 }
 
 .splash-wordmark {
@@ -78,6 +78,69 @@ body {
   border-radius: 14px;
   border: 1px solid #e4e8eb;
   box-shadow: 0 10px 25px rgba(38, 70, 83, 0.08);
+}
+
+.home-shell {
+  width: 100%;
+  max-width: 460px;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.home-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.home-menu-wrap {
+  position: relative;
+}
+
+.menu-toggle {
+  border: 1px solid #d5dee3;
+  background: #ffffff;
+  color: var(--brand-primary);
+  border-radius: 10px;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.home-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 190px;
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.4rem;
+  background: #ffffff;
+  border: 1px solid #dfe6ea;
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(38, 70, 83, 0.1);
+  z-index: 10;
+}
+
+.home-menu-item {
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--brand-primary);
+  text-align: left;
+  padding: 0.5rem 0.55rem;
+  font-size: 0.93rem;
+  cursor: pointer;
+}
+
+.home-menu-item:hover {
+  background: #f2f6f8;
+}
+
+.home-menu-item--danger {
+  color: #a0272a;
 }
 
 .auth-subtitle {
@@ -133,10 +196,26 @@ body {
 
 .home-card h2 {
   margin: 0;
+  font-size: 1.2rem;
 }
 
 .home-card p {
   margin: 0;
+}
+
+.home-user {
+  font-size: 0.85rem;
+  color: #5e747f;
+}
+
+.home-actions {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.5rem;
+}
+
+.home-main-action {
+  width: 100%;
 }
 
 .brand-wordmark {
@@ -207,15 +286,19 @@ body {
 @keyframes splash-logo-bounce {
   0%,
   100% {
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 
-  30% {
-    transform: translateY(-14px);
+  25% {
+    transform: translateY(-9px) scale(1.01);
   }
 
-  60% {
-    transform: translateY(-2px);
+  52% {
+    transform: translateY(-2px) scale(0.997);
+  }
+
+  68% {
+    transform: translateY(-5px) scale(1);
   }
 }
 

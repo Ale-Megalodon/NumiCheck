@@ -62,3 +62,20 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
 - BrandWordmark protegido contra traduccion automatica (translate="no", class notranslate, lang zxx).
 - Index agrega meta google notranslate.
 - Build web validado correctamente.
+[2026-03-01 | Bloque 1 - Fase 3.5 | Ajustes visuales y recarga]
+- Logo splash aumentado de tamano (responsive con clamp).
+- Bounce del logo suavizado y mas lento (1.8s, curva suave).
+- Se elimino el skip de splash en reload: ahora toda recarga inicia siempre desde animacion inicial.
+- Build web validado correctamente.
+[2026-03-01 | Bloque 1 - Fase 3.5 | Redireccion por sesion]
+- Se agrega ruta raiz / con AuthLandingRoute.
+- Si hay sesion: redirige automatico a /app.
+- Si no hay sesion: redirige automatico a /login.
+- Wildcard redirige a / para evitar estados inconsistentes.
+- Build web validado correctamente.
+[2026-03-01 | Bloque 1 | Base de inicio Bloque 2]
+- /app actualizado de placeholder a home base funcional.
+- Se agrega header con wordmark y menu desplegable (Historial, Ayuda, Perfil, Configuracion, Cerrar sesion).
+- Se agregan CTAs principales: Escanear billete / Ingresar manualmente.
+- Estilos mobile-first para home y menu.
+- Build web validado correctamente.
