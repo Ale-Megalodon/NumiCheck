@@ -17,18 +17,21 @@ export function MainMenuPage() {
           </div>
         </header>
 
+        <p className="public-question">¿Qué billete deseas escanear?</p>
+
         <section className="banknotes-grid" aria-label="Seleccion de billetes">
           {BANKNOTE_OPTIONS.map((option) => (
-            <button
-              key={option.denomination}
-              type="button"
-              className="banknote-card"
-              onClick={() => navigate(`/billete/${option.denomination}`)}
-              aria-label={`Seleccionar ${option.label}`}
-            >
-              <img className="banknote-image" src={option.imageSrc} alt={`Billete ${option.label}`} />
+            <article key={option.denomination} className={`banknote-tile banknote-tile--${option.denomination}`}>
+              <button
+                type="button"
+                className="banknote-card"
+                onClick={() => navigate(`/billete/${option.denomination}`)}
+                aria-label={`Seleccionar ${option.label}`}
+              >
+                <img className="banknote-image" src={option.imageSrc} alt={`Billete ${option.label}`} />
+              </button>
               <span className="banknote-label">{option.label}</span>
-            </button>
+            </article>
           ))}
         </section>
       </section>

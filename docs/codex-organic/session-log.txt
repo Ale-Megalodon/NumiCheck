@@ -112,3 +112,13 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
 - Paginas de denominacion mantienen menu hamburguesa y texto centrado (10 bs, 20 bs, 50 bs).
 - Se copian imagenes a public/img: 10bs.jpeg, 20bs.jpeg, 50bs.jpeg.
 - Build web validado correctamente.
+[2026-03-01 | Fase 0 | Login + menu + home layout]
+- Login robustecido con fallback popup->redirect para proveedores sociales.
+- Login ahora redirige automatico a / cuando hay sesion activa.
+- Menu hamburguesa dinamico por sesion:
+  - Sin sesion: Iniciar sesion.
+  - Con sesion: Perfil, Historial, Configuracion, Ayuda, Cerrar sesion.
+- Se agregan rutas funcionales placeholder: /perfil, /historial, /configuracion, /ayuda.
+- Home publica inicia con texto: "¿Qué billete deseas escanear?".
+- Billetes redisenados: 10 y 20 arriba, 50 abajo; imagen ocupa todo el bloque animado; etiqueta fuera del cuadro.
+- Build web validado correctamente.

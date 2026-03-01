@@ -1,13 +1,21 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../app/providers/AuthProvider";
 import { LoginSkeleton } from "../components/LoginSkeleton";
 import { BrandWordmark } from "../../../shared/components/ui/BrandWordmark";
 
 export function LoginPage() {
-  const { loginWithGoogle, loginWithFacebook } = useAuth();
+  const { user, loading, loginWithGoogle, loginWithFacebook } = useAuth();
+  const navigate = useNavigate();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loadingProvider, setLoadingProvider] = useState<"google" | "facebook" | null>(null);
   const [uiLoading, setUiLoading] = useState(true);
+
+  useEffect(() => {
+    if (!loading && user) {
+      navigate("/", { replace: true });
+    }
+  }, [loading, navigate, user]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -28,7 +36,7 @@ export function LoginPage() {
         await loginWithFacebook();
       }
     } catch {
-      setErrorMessage("No pudimos iniciar sesion. Intenta nuevamente.");
+      setErrorMessage("No pudimos iniciar sesion. Intenta nuevamente o revisa permisos del proveedor.");
     } finally {
       setLoadingProvider(null);
     }

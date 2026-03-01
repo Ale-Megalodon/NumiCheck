@@ -1,9 +1,22 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../../app/providers/AuthProvider";
 
 export function HamburgerMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
+
+  const goTo = (path: string) => {
+    setMenuOpen(false);
+    navigate(path);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    setMenuOpen(false);
+    navigate("/", { replace: true });
+  };
 
   return (
     <div className="public-menu-wrap">
@@ -22,16 +35,29 @@ export function HamburgerMenu() {
 
       {menuOpen ? (
         <nav id="public-menu" className="home-menu public-menu">
-          <button
-            type="button"
-            className="home-menu-item"
-            onClick={() => {
-              setMenuOpen(false);
-              navigate("/login");
-            }}
-          >
-            Iniciar sesion
-          </button>
+          {user ? (
+            <>
+              <button type="button" className="home-menu-item" onClick={() => goTo("/perfil")}>
+                Perfil
+              </button>
+              <button type="button" className="home-menu-item" onClick={() => goTo("/historial")}>
+                Historial
+              </button>
+              <button type="button" className="home-menu-item" onClick={() => goTo("/configuracion")}>
+                Configuracion
+              </button>
+              <button type="button" className="home-menu-item" onClick={() => goTo("/ayuda")}>
+                Ayuda
+              </button>
+              <button type="button" className="home-menu-item home-menu-item--danger" onClick={handleLogout}>
+                Cerrar sesion
+              </button>
+            </>
+          ) : (
+            <button type="button" className="home-menu-item" onClick={() => goTo("/login")}>
+              Iniciar sesion
+            </button>
+          )}
         </nav>
       ) : null}
     </div>

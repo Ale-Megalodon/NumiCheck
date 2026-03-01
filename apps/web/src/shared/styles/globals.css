@@ -103,7 +103,7 @@ body {
 
 .public-shell {
   width: 100%;
-  max-width: 720px;
+  max-width: 860px;
   margin: 0 auto;
 }
 
@@ -133,6 +133,13 @@ body {
 
 .public-menu-wrap {
   position: relative;
+}
+
+.public-question {
+  margin: 1.2rem 0 1rem;
+  font-size: clamp(1.25rem, 3.2vw, 1.9rem);
+  font-weight: 700;
+  color: var(--brand-primary);
 }
 
 .auth-card,
@@ -235,21 +242,32 @@ body {
 .banknotes-grid {
   margin-top: 1.5rem;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.banknote-tile {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.banknote-tile--50 {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: min(100%, 420px);
 }
 
 .banknote-card {
   border: 1px solid #d9e3e6;
-  border-radius: 16px;
+  border-radius: 20px;
   background: var(--surface);
-  padding: 0.75rem 0.5rem;
-  display: grid;
-  gap: 0.45rem;
-  justify-items: center;
+  padding: 0;
+  display: block;
   cursor: pointer;
   animation: banknote-pulse 1.9s ease-in-out infinite;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
+  overflow: hidden;
+  width: 100%;
 }
 
 .banknote-card:hover {
@@ -259,16 +277,17 @@ body {
 
 .banknote-image {
   width: 100%;
-  max-width: 150px;
-  aspect-ratio: 16 / 8;
+  aspect-ratio: 16 / 9;
   object-fit: cover;
-  border-radius: 10px;
+  display: block;
 }
 
 .banknote-label {
+  display: block;
+  text-align: center;
   color: var(--brand-primary);
   font-weight: 700;
-  font-size: 0.96rem;
+  font-size: 1.03rem;
 }
 
 .denomination-placeholder {
@@ -511,5 +530,15 @@ body {
   .splash-logo-image,
   .splash-wordmark {
     transform: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .banknotes-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .banknote-tile--50 {
+    width: 100%;
   }
 }
