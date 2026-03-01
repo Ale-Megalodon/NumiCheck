@@ -1,0 +1,13 @@
+{
+  "name": "numicheck",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @numicheck/web",
+    "build": "npm run build -w @numicheck/web",
+    "preview": "npm run preview -w @numicheck/web"
+  }
+}

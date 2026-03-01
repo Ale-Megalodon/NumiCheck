@@ -1,0 +1,247 @@
+NUMICHECK - CODEX ORGANIC - MAPA 0
+Version: 1.0
+Fecha: 2026-03-01
+Estado: Activo (documento vivo)
+
+==================================================
+0) PROPOSITO DE ESTE ARCHIVO
+==================================================
+Este archivo define como trabajaremos el proyecto NumiCheck sin mezclar codigo,
+con enfoque rapido, modular y escalable.
+
+Regla principal del producto:
+- NumiCheck SOLO valida billetes por NUMERO DE SERIE (+ denominacion).
+- No valida autenticidad fisica del billete.
+
+==================================================
+1) OBJETIVO MVP (PROYECTO FUGAZ)
+==================================================
+Entregar MVP funcional en 10-12 horas con:
+1. Login usuario social (Google y luego Facebook si entra en tiempo).
+2. Pantalla principal con:
+   - Escanear por camara
+   - Ingresar serie manualmente
+   - Subir imagen
+3. Resultado binario:
+   - Verde: legal en circulacion
+   - Rojo: ilegal/bloqueado
+4. Historial por usuario.
+5. Panel admin secreto con login propio (1 correo + 1 contrasena).
+6. CRUD de series ilegales en base de datos.
+7. Registro de uso y seguridad minima anti-bot.
+
+==================================================
+2) ESTRUCTURA DE CARPETAS (BASE OFICIAL)
+==================================================
+numicheck/
+  apps/
+    web/
+      src/
+        app/
+          router/
+          providers/
+          layouts/
+        modules/
+          auth/
+            components/
+            pages/
+            hooks/
+            services/
+            types.ts
+            index.ts
+          validation/
+            components/
+            pages/
+            hooks/
+            services/
+            utils/
+            types.ts
+            index.ts
+          history/
+            components/
+            pages/
+            hooks/
+            services/
+            types.ts
+            index.ts
+          profile/
+          help/
+          settings/
+          admin/
+            components/
+            pages/
+            hooks/
+            services/
+            guards/
+            types.ts
+            index.ts
+        shared/
+          components/
+            ui/
+            feedback/
+            motion/
+          assets/
+            logos/
+            icons/
+            lottie/
+          config/
+          constants/
+          lib/
+          styles/
+            tokens.css
+            globals.css
+            animations.css
+          utils/
+          types/
+      public/
+
+    api/
+      src/
+        app/
+        config/
+        modules/
+          auth/
+            controllers/
+            services/
+            repositories/
+            schemas/
+            dto/
+          users/
+          validation/
+          blocked-serials/
+          history/
+          admin/
+          analytics/
+          audit/
+        shared/
+          db/
+          middleware/
+          errors/
+          utils/
+          types/
+      prisma/
+        schema.prisma
+        migrations/
+        seeds/
+      tests/
+
+  docs/
+    codex-organic/
+      mapa-0.txt
+      session-log.txt
+      api-contracts.txt
+      db-rules.txt
+      ui-motion-system.txt
+
+==================================================
+3) REGLAS CODEX ORGANIC (NO NEGOCIABLES)
+==================================================
+1. Un archivo = una responsabilidad.
+2. No crear archivos gigantes.
+3. No meter logica de negocio en componentes UI.
+4. No meter SQL directo en controladores.
+5. Todo endpoint con validacion de entrada.
+6. Toda accion admin deja auditoria.
+
+Limites recomendados:
+- Componente UI: max 250 lineas
+- Servicio backend: max 350 lineas
+- Si un modulo crece demasiado, se divide
+
+==================================================
+4) FLUJOS DEL SISTEMA
+==================================================
+A) Flujo Usuario
+1. Login social
+2. Home
+3. Escanear / Manual / Subir imagen
+4. Confirmacion de serie
+5. Validacion
+6. Resultado verde/rojo
+7. Guardar historial
+
+B) Flujo Admin
+1. URL privada no obvia
+2. Login admin unico
+3. Dashboard (usuarios + uso)
+4. Gestion de series ilegales (CRUD)
+5. Auditoria de cambios
+
+==================================================
+5) MODELO DE DATOS MINIMO
+==================================================
+1. users
+2. social_accounts
+3. admin_users
+4. blocked_serials
+5. validations
+6. admin_audit_logs
+7. security_events
+
+Regla de motor de validacion:
+- Si serie normalizada existe en blocked_serials (activa y vigente) => ROJO
+- Si no existe => VERDE
+
+==================================================
+6) OPTIMIZACION TECNICA CLAVE
+==================================================
+1. Normalizar serie antes de consultar:
+   - uppercase
+   - quitar espacios extras
+   - guardar formato canonico
+2. Indexar blocked_serials por:
+   - serial_normalized
+   - denomination
+   - active
+3. Guardar serie enmascarada en historial para privacidad.
+4. Aplicar rate limit por IP y por usuario.
+5. Cache corta para reglas activas (si hace falta por carga).
+
+==================================================
+7) SISTEMA DE ANIMACION (UI PRIORIDAD)
+==================================================
+1. Definir tokens globales (duracion, easing, escala).
+2. Usar componentes motion reutilizables (no animaciones sueltas).
+3. Skeletons para estados de carga en pantallas clave.
+4. Estados visuales obligatorios: loading, success, error, empty.
+
+==================================================
+8) ORDEN DE EJECUCION POR BLOQUES
+==================================================
+Bloque 1 - Congelar contrato y UX
+- Formato de serie
+- Reglas de validacion
+- Copys y mensajes
+- Wireframe de pantallas
+
+Bloque 2 - Construccion MVP visible
+- Frontend base
+- Login social
+- Scanner/OCR/manual/upload
+- Resultado verde/rojo
+- Historial usuario
+
+Bloque 3 - Operacion real
+- Panel admin secreto
+- CRUD de series ilegales
+- Auditoria + metricas
+- Seguridad minima y go-live
+
+==================================================
+9) COMO USAREMOS ESTE ARCHIVO EN CADA SESION
+==================================================
+Al iniciar sesion:
+1. Revisar este mapa (mapa-0.txt)
+2. Revisar session-log.txt
+3. Ejecutar solo el bloque pedido por el usuario
+4. Registrar cambios y decisiones
+
+==================================================
+10) DEFINICION DE EXITO MVP
+==================================================
+1. Usuario valida serie en segundos.
+2. Resultado claro verde/rojo.
+3. Admin actualiza series ilegales sin redeploy.
+4. Sistema estable para lanzamiento rapido.
+
+FIN DEL MAPA 0

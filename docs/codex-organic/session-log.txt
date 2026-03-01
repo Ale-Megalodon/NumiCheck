@@ -1,0 +1,18 @@
+NUMICHECK - CODEX ORGANIC - SESSION LOG
+
+[2026-03-01]
+- Se crea mapa operativo inicial: docs/codex-organic/mapa-0.txt
+- Se define metodologia Codex Organic como estandar de organizacion.
+- Proximo paso: ejecutar bloque de implementacion indicado por el usuario.
+
+[2026-03-01 | Bloque 1 - Fase 1]
+- Se creo base frontend modular en apps/web (React + Vite + TypeScript).
+- Se implemento login social con Firebase Auth: Google y Facebook.
+- Se implemento sesion persistente con onAuthStateChanged.
+- Se agrego redireccion automatica:
+  - Sin sesion -> /login
+  - Con sesion -> /app
+- Pantalla /app temporal creada con texto: "Proximo!".
+- Se agrego boton de cierre de sesion.
+- Se agrego .env.example para credenciales Firebase.
+- Pendiente de validacion en runtime por falta de Node/npm en el entorno actual.
