@@ -25,6 +25,12 @@ export type AdminUserRecord = {
   illegalQueries: number;
 };
 
+export type AdminUsersLoadResult = {
+  rows: AdminUserRecord[];
+  source: "cloud" | "local";
+  cloudError: string | null;
+};
+
 const STORAGE_KEY = "numicheck_admin_users_v1";
 const CLOUD_COLLECTION = "numicheck_admin_users";
 
@@ -118,7 +124,21 @@ export function getAdminUsers(): AdminUserRecord[] {
   return sortByLastLogin(readStore());
 }
 
-export async function getAdminUsersCloudFirst(): Promise<AdminUserRecord[]> {
+function formatCloudError(error: unknown) {
+  if (error && typeof error === "object") {
+    const maybe = error as { code?: string; message?: string };
+    if (typeof maybe.code === "string" && maybe.code.length > 0) {
+      return maybe.code;
+    }
+    if (typeof maybe.message === "string" && maybe.message.length > 0) {
+      return maybe.message;
+    }
+  }
+
+  return "unknown";
+}
+
+export async function getAdminUsersCloudFirst(): Promise<AdminUsersLoadResult> {
   try {
     const q = query(collection(firebaseDb, CLOUD_COLLECTION), orderBy("lastLoginAt", "desc"));
     const snapshot = await getDocs(q);
@@ -131,15 +151,20 @@ export async function getAdminUsersCloudFirst(): Promise<AdminUserRecord[]> {
       }
     });
 
-    if (cloudRows.length > 0) {
-      writeStore(cloudRows);
-      return cloudRows;
-    }
-  } catch {
+    writeStore(cloudRows);
+    return {
+      rows: sortByLastLogin(cloudRows),
+      source: "cloud",
+      cloudError: null
+    };
+  } catch (error) {
     // Fallback to local cache if cloud is unavailable.
+    return {
+      rows: getAdminUsers(),
+      source: "local",
+      cloudError: formatCloudError(error)
+    };
   }
-
-  return getAdminUsers();
 }
 
 export function upsertAdminUserFromAuth(user: User) {

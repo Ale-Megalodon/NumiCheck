@@ -287,7 +287,7 @@ export function DenominationPage() {
         await scanRegion(0, 0, targetWidth, targetHeight);
       }
 
-      const estimatedEffectiveness = Math.round(bestConfidence * 0.55 + bestQuality * 0.45);
+      const estimatedEffectiveness = Math.round(bestConfidence * 0.3 + bestQuality * 0.7);
 
       if (!bestCandidate || estimatedEffectiveness < MIN_UPLOAD_PREVIEW_CONFIDENCE) {
         setFormError("Imagen borrosa. Intenta escanearlo de forma manual.");
@@ -331,7 +331,7 @@ export function DenominationPage() {
       return 0;
     }
 
-    const weighted = Math.round(scanPreview.confidence * 0.78 + scanPreview.quality * 0.22);
+    const weighted = Math.round(scanPreview.confidence * 0.3 + scanPreview.quality * 0.7);
     return Math.max(60, Math.min(99, weighted));
   }, [scanPreview]);
 

@@ -42,7 +42,7 @@ type Candidate = {
 const GUIDE_KEY = "numicheck_scan_guide_seen_v1";
 const QUALITY_SAMPLE_WIDTH = 148;
 const QUALITY_SAMPLE_HEIGHT = 44;
-const MIN_CONFIDENCE = 30;
+const MIN_CONFIDENCE = 12;
 const SNAP_FLASH_MS = 90;
 const SUPER_TURBO_PREVIEW_MIN_CONFIDENCE = 40;
 const SUPER_TURBO_MIN_EFFECTIVENESS = 60;
@@ -555,7 +555,7 @@ export function SerialScannerPanel({
       const acceptedQuality = getCandidateQuality(best);
       const acceptedZone = getCandidateZoneLabel(best);
       const acceptedSerial = getCandidateSerial(best);
-      const acceptedEffectiveness = Math.round(acceptedConfidence * 0.78 + acceptedQuality * 0.22);
+      const acceptedEffectiveness = Math.round(acceptedConfidence * 0.3 + acceptedQuality * 0.7);
       const hasAcceptedCandidate =
         acceptedSerial.length >= digitBounds.minDigits &&
         (acceptedConfidence >= SUPER_TURBO_PREVIEW_MIN_CONFIDENCE ||

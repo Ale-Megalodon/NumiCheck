@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "../../../app/providers/AuthProvider";
 import { BrandWordmark } from "../../../shared/components/ui/BrandWordmark";
 import { IllegalRangesEditor } from "../components/IllegalRangesEditor";
 import { confirmRangeEdit } from "../utils/rangeSafety";
@@ -52,8 +53,11 @@ function hasTuningPatchValues(patch: ScanTuningOverride["patch"]) {
 }
 
 export function AdminPanelPage() {
+  const { user } = useAuth();
   const [users, setUsers] = useState<AdminUserRecord[]>(() => getAdminUsers());
   const [usersLoading, setUsersLoading] = useState(true);
+  const [cloudSource, setCloudSource] = useState<"cloud" | "local" | null>(null);
+  const [cloudWarning, setCloudWarning] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [rangesByDenomination, setRangesByDenomination] = useState(() => getIllegalRanges());
   const [testDenomination, setTestDenomination] = useState<Denomination>("10");
@@ -74,7 +78,9 @@ export function AdminPanelPage() {
   const reloadUsers = async () => {
     setUsersLoading(true);
     const next = await getAdminUsersCloudFirst();
-    setUsers(next);
+    setUsers(next.rows);
+    setCloudSource(next.source);
+    setCloudWarning(next.cloudError);
     setSelectedUserId(null);
     setUsersLoading(false);
   };
@@ -210,6 +216,13 @@ export function AdminPanelPage() {
               Actualizar
             </button>
           </div>
+
+          <p className="admin-note">
+            {`Sesion actual: ${user?.email ?? "sin iniciar sesion"} | Fuente: ${cloudSource ?? "cargando..."}`}
+          </p>
+          {cloudWarning ? (
+            <p className="manual-error">{`No se pudo leer nube (${cloudWarning}). Verifica reglas y que entraste con el correo admin.`}</p>
+          ) : null}
 
           <div className="admin-table-wrap">
             <table className="admin-table">

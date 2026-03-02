@@ -467,3 +467,15 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
 - Se agrega skeleton para carga de pagina de ayuda.
 - Se agrega animacion de despliegue por pasos y soporte modo oscuro.
 - Build web validado correctamente.
+[2026-03-02 | Debug admin cloud + turbo >=60]
+- Scanner:
+  - MIN_CONFIDENCE OCR reducido para no descartar lecturas utiles por confianza baja
+  - efectividad turbo recalculada priorizando calidad (30% confianza / 70% calidad)
+  - criterio >=60 queda operativo para preview rapido
+- OCR serial:
+  - fallback expandido para extraer digitos aunque OCR no marque letra B
+- Admin usuarios:
+  - getAdminUsersCloudFirst ahora retorna diagnostico (fuente cloud/local + error)
+  - panel admin muestra sesion actual y aviso explicito de error de nube/permisos
+  - permite detectar rapido si reglas/firestore/login admin estan bloqueando lectura
+- Build web validado correctamente.
