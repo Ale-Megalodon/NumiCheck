@@ -182,3 +182,15 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
   - Ambos con boton grande "X" para cerrar.
 - Se agrega registro de consultas por usuario autenticado (totales, legales, ilegales) para panel admin.
 - Build web validado correctamente.
+[2026-03-02 | Bloque C | Arreglos solicitados]
+- Se corrige texto con simbolos raros en inicio reescribiendo MainMenuPage en UTF-8 limpio.
+- Pregunta principal ajustada a ASCII estable: "Que billete deseas escanear?".
+- Se elimina del menu hamburguesa la logica de "Pulsa dos veces para salir" y el boton "Salir".
+- Nueva logica de salida por boton atras del celular en inicio:
+  - Primer toque atras: muestra "Presione de nuevo para salir".
+  - Segundo toque (2.2s): permite salir/retroceder del navegador.
+- Verificacion manual ahora admite longitud variable de serie por tablas:
+  - Se calcula min y max dinamicamente desde los rangos cargados por denominacion.
+  - Formulario valida entre min/max y recorta input al maximo permitido.
+  - Con tablas actuales: minimo 8 digitos, maximo 9 digitos.
+- Build web validado correctamente.

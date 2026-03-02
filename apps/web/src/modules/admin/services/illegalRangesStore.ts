@@ -17,6 +17,11 @@ type ValidationOutcome = {
   matchedRange?: IllegalRange;
 };
 
+type SerialDigitBounds = {
+  minDigits: number;
+  maxDigits: number;
+};
+
 const STORAGE_KEY = "numicheck_illegal_ranges_v1";
 
 const DEFAULT_RANGES: Record<Denomination, RangeTuple[]> = {
@@ -148,6 +153,23 @@ export function createIllegalRange(start = 0, end = 0): IllegalRange {
   };
 }
 
+export function getSerialDigitBounds(denomination: Denomination): SerialDigitBounds {
+  const rows = getIllegalRanges()[denomination];
+  const digitLengths = rows.flatMap((row) => [
+    String(Math.abs(Math.trunc(row.start))).length,
+    String(Math.abs(Math.trunc(row.end))).length
+  ]);
+
+  if (digitLengths.length === 0) {
+    return { minDigits: 1, maxDigits: 10 };
+  }
+
+  return {
+    minDigits: Math.max(1, Math.min(...digitLengths)),
+    maxDigits: Math.max(...digitLengths)
+  };
+}
+
 export function evaluateSeriesAgainstIllegalRanges(
   denomination: Denomination,
   serialInput: string
@@ -195,4 +217,3 @@ export function evaluateSeriesAgainstIllegalRanges(
     reason: "No coincide con rangos inhabilitados para esa denominacion."
   };
 }
-

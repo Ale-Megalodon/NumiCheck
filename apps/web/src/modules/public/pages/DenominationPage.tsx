@@ -5,6 +5,7 @@ import { BrandWordmark } from "../../../shared/components/ui/BrandWordmark";
 import { registerAdminUserQuery } from "../../admin/services/adminUsersStore";
 import {
   type Denomination,
+  getSerialDigitBounds,
   evaluateSeriesAgainstIllegalRanges
 } from "../../admin/services/illegalRangesStore";
 import { HamburgerMenu } from "../components/HamburgerMenu";
@@ -58,6 +59,7 @@ export function DenominationPage() {
   }
 
   const denominationValue = selected.denomination as Denomination;
+  const digitBounds = getSerialDigitBounds(denominationValue);
 
   const handleScanClick = () => {
     setShowScanHint(true);
@@ -70,8 +72,10 @@ export function DenominationPage() {
     event.preventDefault();
     setFormError("");
 
-    if (serialDigits.length !== 9) {
-      setFormError("El numero de serie debe tener exactamente 9 digitos.");
+    if (serialDigits.length < digitBounds.minDigits || serialDigits.length > digitBounds.maxDigits) {
+      setFormError(
+        `El numero de serie para ${selected.label} debe tener entre ${digitBounds.minDigits} y ${digitBounds.maxDigits} digitos.`
+      );
       return;
     }
 
@@ -155,13 +159,13 @@ export function DenominationPage() {
                         type="text"
                         inputMode="numeric"
                         className="manual-input"
-                        maxLength={9}
+                        maxLength={digitBounds.maxDigits}
                         value={serialDigits}
                         onChange={(event) => {
-                          const digitsOnly = event.target.value.replace(/\D/g, "").slice(0, 9);
+                          const digitsOnly = event.target.value.replace(/\D/g, "").slice(0, digitBounds.maxDigits);
                           setSerialDigits(digitsOnly);
                         }}
-                        placeholder="Ej: 123456789"
+                        placeholder={`Ej: ${"0".repeat(digitBounds.maxDigits)}`}
                         aria-label="Numero de serie"
                       />
                     </label>
