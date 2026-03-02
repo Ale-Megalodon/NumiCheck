@@ -44,14 +44,19 @@ const QUALITY_SAMPLE_WIDTH = 148;
 const QUALITY_SAMPLE_HEIGHT = 44;
 const MIN_CONFIDENCE = 12;
 const SNAP_FLASH_MS = 90;
-const SUPER_TURBO_PREVIEW_MIN_CONFIDENCE = 40;
+const SUPER_TURBO_PREVIEW_MIN_CONFIDENCE = 28;
 const SUPER_TURBO_MIN_EFFECTIVENESS = 60;
-const TURBO_SECONDARY_WINDOW_MIN_MS = 380;
-const TURBO_SECONDARY_WINDOW_MAX_MS = 1100;
-const TURBO_SCAN_TOTAL_MIN_MS = 620;
-const TURBO_SCAN_TOTAL_MAX_MS = 1700;
+const TURBO_SECONDARY_WINDOW_MIN_MS = 260;
+const TURBO_SECONDARY_WINDOW_MAX_MS = 760;
+const TURBO_SCAN_TOTAL_MIN_MS = 540;
+const TURBO_SCAN_TOTAL_MAX_MS = 1300;
 const MIN_QUALITY_TO_ATTEMPT_OCR = 18;
-const SCANNER_ENGINE_VERSION = "Turbo v3";
+const SCANNER_ENGINE_VERSION = "Turbo v4";
+const BURST_CAPTURE_ATTEMPTS = 3;
+const BURST_CAPTURE_DELAY_MS = 55;
+const OCR_QUALITY_CONFIDENCE_BOOST_FACTOR = 0.12;
+const OCR_FULL_LENGTH_BONUS = 10;
+const OCR_ALMOST_FULL_LENGTH_BONUS = 6;
 const PRIMARY_ZONE_BY_DENOMINATION: Record<ScannerDenomination, string> = {
   "10": "Zona superior",
   "20": "Zona superior",
@@ -147,6 +152,51 @@ function drawRegionForOcr(
 
     context.putImageData(image, 0, 0);
   }
+}
+
+function delay(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function shiftRegion(
+  region: { left: number; top: number; width: number; height: number },
+  frameWidth: number,
+  frameHeight: number,
+  horizontalOffsetPercent: number
+) {
+  const shift = Math.round(region.width * horizontalOffsetPercent);
+  const left = clamp(region.left + shift, 0, Math.max(0, frameWidth - region.width));
+  const top = clamp(region.top, 0, Math.max(0, frameHeight - region.height));
+
+  return {
+    left,
+    top,
+    width: region.width,
+    height: region.height
+  };
+}
+
+function boostConfidenceFromQuality(
+  confidence: number,
+  quality: number,
+  candidateLength: number,
+  targetMaxDigits: number
+) {
+  let boosted = confidence + Math.round(quality * OCR_QUALITY_CONFIDENCE_BOOST_FACTOR);
+
+  if (candidateLength >= targetMaxDigits) {
+    boosted += OCR_FULL_LENGTH_BONUS;
+  } else if (candidateLength >= targetMaxDigits - 1) {
+    boosted += OCR_ALMOST_FULL_LENGTH_BONUS;
+  }
+
+  return clamp(boosted, confidence, 99);
 }
 
 async function recognizeWithTimeout(
@@ -300,8 +350,8 @@ export function SerialScannerPanel({
           audio: false,
           video: {
             facingMode: { ideal: "environment" },
-            width: { ideal: 720 },
-            height: { ideal: 405 }
+            width: { ideal: 640 },
+            height: { ideal: 360 }
           }
         });
 
@@ -413,7 +463,7 @@ export function SerialScannerPanel({
 
     setIsScanning(true);
     setScanStatus("reading");
-    setStatusText("Super turbo: capturando y leyendo...");
+    setStatusText("Super turbo: captura en rafaga...");
     setErrorText("");
     setScanFlash(true);
     window.setTimeout(() => setScanFlash(false), SNAP_FLASH_MS);
@@ -430,7 +480,6 @@ export function SerialScannerPanel({
       const scanStartedAt = performance.now();
       frameCanvas.width = video.videoWidth;
       frameCanvas.height = video.videoHeight;
-      frameContext.drawImage(video, 0, 0, frameCanvas.width, frameCanvas.height);
 
       const regions =
         regionsRef.current.length > 0
@@ -438,21 +487,35 @@ export function SerialScannerPanel({
           : buildScanRegions(denomination, video.videoWidth, video.videoHeight);
 
       const quickRegions = getQuickRegionsForDenomination(denomination, regions);
-      const quickAcceptConfidence = Math.max(MIN_CONFIDENCE, adaptiveThresholds.fastAcceptConfidence - 2);
+      const quickAcceptConfidence = Math.max(MIN_CONFIDENCE, adaptiveThresholds.fastAcceptConfidence - 8);
       const immediateAcceptConfidence = Math.max(
         quickAcceptConfidence,
-        adaptiveThresholds.immediateAcceptConfidence - 1
+        adaptiveThresholds.immediateAcceptConfidence - 6
       );
+      const qualityAcceptFloor = Math.max(46, adaptiveThresholds.qualityAcceptFloor - 14);
       const secondaryWindowMs = Math.min(
         TURBO_SECONDARY_WINDOW_MAX_MS,
-        Math.max(TURBO_SECONDARY_WINDOW_MIN_MS, deviceProfile.baseDelayMs + deviceProfile.readHitDelayMs + 520)
+        Math.max(TURBO_SECONDARY_WINDOW_MIN_MS, deviceProfile.baseDelayMs + deviceProfile.readHitDelayMs + 240)
       );
       const maxScanMs = Math.min(
         TURBO_SCAN_TOTAL_MAX_MS,
-        Math.max(TURBO_SCAN_TOTAL_MIN_MS, deviceProfile.baseDelayMs + deviceProfile.maxOcrMs + 120)
+        Math.max(TURBO_SCAN_TOTAL_MIN_MS, deviceProfile.baseDelayMs + deviceProfile.maxOcrMs - 40)
       );
-      const ocrTimeoutMs = Math.min(980, Math.max(540, deviceProfile.maxOcrMs + 40));
-      const tryQuickRegion = async (region: (typeof quickRegions)[number], regionIndex: number) => {
+      const ocrTimeoutMs = Math.min(560, Math.max(260, deviceProfile.maxOcrMs - 110));
+      const horizontalOffsets = [0, -0.018, 0.018];
+
+      const tryQuickRegion = async (
+        region: (typeof quickRegions)[number],
+        regionIndex: number,
+        burstIndex: number
+      ) => {
+        const shifted = shiftRegion(
+          region,
+          frameCanvas.width,
+          frameCanvas.height,
+          horizontalOffsets[burstIndex % horizontalOffsets.length] ?? 0
+        );
+
         setZoneLabel(region.label);
         observedZone = region.label;
 
@@ -460,10 +523,10 @@ export function SerialScannerPanel({
         qualityCanvas.height = QUALITY_SAMPLE_HEIGHT;
         qualityContext.drawImage(
           frameCanvas,
-          region.left,
-          region.top,
-          region.width,
-          region.height,
+          shifted.left,
+          shifted.top,
+          shifted.width,
+          shifted.height,
           0,
           0,
           QUALITY_SAMPLE_WIDTH,
@@ -482,7 +545,7 @@ export function SerialScannerPanel({
           return false;
         }
 
-        drawRegionForOcr(frameCanvas, canvas, region, "quick");
+        drawRegionForOcr(frameCanvas, canvas, shifted, "quick");
 
         const ocrStart = performance.now();
         const result = await recognizeWithTimeout(worker, canvas, ocrTimeoutMs);
@@ -495,17 +558,29 @@ export function SerialScannerPanel({
         }
 
         const text = result.data?.text ?? "";
-        const confidence = Math.round(result.data?.confidence ?? 0);
-        observedConfidence = Math.max(observedConfidence, confidence);
-
+        const rawConfidence = Math.round(result.data?.confidence ?? 0);
         const candidate = extractSerialDigitsFromOcr(text, digitBounds);
 
-        if (!candidate || confidence < MIN_CONFIDENCE) {
+        if (!candidate) {
+          observedConfidence = Math.max(observedConfidence, rawConfidence);
           bestHint = `No legible en ${region.label}.`;
           return false;
         }
 
-        const candidateScore = confidence * 0.62 + quality.score * 0.26 + region.priority * 10;
+        const confidence = boostConfidenceFromQuality(
+          rawConfidence,
+          quality.score,
+          candidate.length,
+          digitBounds.maxDigits
+        );
+        observedConfidence = Math.max(observedConfidence, confidence);
+
+        if (confidence < MIN_CONFIDENCE) {
+          bestHint = `No legible en ${region.label}.`;
+          return false;
+        }
+
+        const candidateScore = confidence * 0.64 + quality.score * 0.3 + region.priority * 10 - burstIndex * 1.5;
         const current: Candidate = {
           serial: candidate,
           confidence,
@@ -520,33 +595,45 @@ export function SerialScannerPanel({
         }
 
         const quickAccept = confidence >= quickAcceptConfidence;
-        const immediateAccept =
-          confidence >= immediateAcceptConfidence &&
-          quality.score >= adaptiveThresholds.qualityAcceptFloor - 10;
+        const immediateAccept = confidence >= immediateAcceptConfidence && quality.score >= qualityAcceptFloor;
+        const qualityDrivenAccept = quality.score >= 78 && confidence >= MIN_CONFIDENCE;
 
-        return quickAccept || immediateAccept;
+        return quickAccept || immediateAccept || qualityDrivenAccept;
       };
 
       const primaryRegion = quickRegions[0] ?? null;
       const secondaryRegion = quickRegions[1] ?? null;
 
-      let acceptedInPrimary = false;
-      if (primaryRegion) {
-        acceptedInPrimary = await tryQuickRegion(primaryRegion, 0);
+      let acceptedInBurst = false;
+      for (let burstIndex = 0; burstIndex < BURST_CAPTURE_ATTEMPTS; burstIndex += 1) {
+        frameContext.drawImage(video, 0, 0, frameCanvas.width, frameCanvas.height);
+        acceptedInBurst = false;
+
+        if (primaryRegion) {
+          acceptedInBurst = await tryQuickRegion(primaryRegion, 0, burstIndex);
+        }
+
+        const elapsedAfterPrimary = performance.now() - scanStartedAt;
+        const bestConfidenceAfterPrimary = getCandidateConfidence(best);
+        if (
+          !acceptedInBurst &&
+          secondaryRegion &&
+          bestConfidenceAfterPrimary < quickAcceptConfidence &&
+          elapsedAfterPrimary < secondaryWindowMs
+        ) {
+          acceptedInBurst = await tryQuickRegion(secondaryRegion, 1, burstIndex);
+        }
+
+        if (acceptedInBurst || performance.now() - scanStartedAt >= maxScanMs) {
+          break;
+        }
+
+        if (burstIndex < BURST_CAPTURE_ATTEMPTS - 1) {
+          await delay(BURST_CAPTURE_DELAY_MS);
+        }
       }
 
-      const bestConfidenceAfterPrimary = getCandidateConfidence(best);
-      const elapsedAfterPrimary = performance.now() - scanStartedAt;
-      if (
-        !acceptedInPrimary &&
-        secondaryRegion &&
-        bestConfidenceAfterPrimary < quickAcceptConfidence &&
-        elapsedAfterPrimary < secondaryWindowMs
-      ) {
-        await tryQuickRegion(secondaryRegion, 1);
-      }
-
-      const elapsedTotal = performance.now() - scanStartedAt;
+      const elapsedTotal = Math.round(performance.now() - scanStartedAt);
       if (elapsedTotal > maxScanMs && !best) {
         bestHint = "No se pudo leer en modo turbo. Reintenta o usa subir imagen.";
       }
@@ -555,10 +642,11 @@ export function SerialScannerPanel({
       const acceptedQuality = getCandidateQuality(best);
       const acceptedZone = getCandidateZoneLabel(best);
       const acceptedSerial = getCandidateSerial(best);
-      const acceptedEffectiveness = Math.round(acceptedConfidence * 0.3 + acceptedQuality * 0.7);
+      const acceptedEffectiveness = Math.round(acceptedConfidence * 0.25 + acceptedQuality * 0.75);
       const hasAcceptedCandidate =
         acceptedSerial.length >= digitBounds.minDigits &&
-        (acceptedConfidence >= SUPER_TURBO_PREVIEW_MIN_CONFIDENCE ||
+        (acceptedInBurst ||
+          acceptedConfidence >= SUPER_TURBO_PREVIEW_MIN_CONFIDENCE ||
           acceptedEffectiveness >= SUPER_TURBO_MIN_EFFECTIVENESS);
 
       if (hasAcceptedCandidate) {
@@ -566,10 +654,10 @@ export function SerialScannerPanel({
         setQualityScore(acceptedQuality);
         setZoneLabel(acceptedZone);
         setScanStatus("ready");
-        setStatusText(`Turbo listo: "${acceptedSerial}" - B (${acceptedConfidence}%)`);
+        setStatusText(`Turbo listo en ${elapsedTotal}ms: "${acceptedSerial}" - B (${acceptedConfidence}%)`);
 
         recordScanSample(denomination, {
-          ocrMs: ocrCalls > 0 ? Math.round(totalOcrMs / ocrCalls) : Math.min(deviceProfile.maxOcrMs, 420),
+          ocrMs: ocrCalls > 0 ? Math.round(totalOcrMs / ocrCalls) : Math.min(deviceProfile.maxOcrMs, 380),
           quality: acceptedQuality,
           confidence: acceptedConfidence,
           success: true,
@@ -594,13 +682,11 @@ export function SerialScannerPanel({
         setLastConfidence(finalConfidence);
         setScanStatus("ready");
         setStatusText(
-          hasCandidate
-            ? `Lectura inestable (${acceptedConfidence}%). Reintenta para confirmar.`
-            : bestHint
+          hasCandidate ? `Lectura inestable (${acceptedConfidence}%). Reintenta para confirmar.` : bestHint
         );
 
         recordScanSample(denomination, {
-          ocrMs: ocrCalls > 0 ? Math.round(totalOcrMs / ocrCalls) : Math.min(deviceProfile.maxOcrMs, 680),
+          ocrMs: ocrCalls > 0 ? Math.round(totalOcrMs / ocrCalls) : Math.min(deviceProfile.maxOcrMs, 560),
           quality: finalQuality,
           confidence: finalConfidence,
           success: false,
