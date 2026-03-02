@@ -307,3 +307,18 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
 - "Verificar ya!" reutiliza la logica oficial existente y dispara resultado final verde/rojo.
 - El escaner ahora reporta serial, confianza y calidad al contenedor de pagina.
 - Build web validado correctamente.
+[2026-03-02 | Admin tuning UI simplificado]
+- Se simplifica el bloque "Tuning de escaner por modelo" para reducir ruido visual.
+- Se elimina campo manual "Etiqueta" del formulario (modelo/patron pasa a ser el dato principal).
+- Etiqueta ahora se autogenera con el patron User-Agent cuando viene vacia.
+- Los parametros numericos se mueven a "Mostrar ajustes avanzados" (colapsado por defecto).
+- En modo simple solo se muestran campos esenciales: modelo, denominacion y tier.
+- Botonera reducida a acciones clave: Guardar perfil y Nuevo.
+- Build web validado correctamente.
+[2026-03-02 | Tematizacion por denominacion 10/20/50]
+- Paginas de billete ahora aplican paleta visual por denominacion (10, 20 y 50 Bs).
+- Se usa estilo inspirado en colores del billete con contraste adaptado para legibilidad.
+- Nuevo titulo principal en cada pagina: "Escanea tus X Bs!".
+- Se tematizan secciones clave: fondo de pagina, bloque principal, botones de accion, scanner y formulario manual.
+- Mantiene logo superior normal y estructura funcional existente.
+- Build web validado correctamente.

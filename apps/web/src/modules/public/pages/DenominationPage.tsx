@@ -69,6 +69,8 @@ export function DenominationPage() {
 
   const denominationValue = selected.denomination as Denomination;
   const digitBounds = getSerialDigitBounds(denominationValue);
+  const denominationTitle = `Escanea tus ${selected.denomination} Bs!`;
+  const pageThemeClass = `public-page public-page--denomination public-page--${selected.denomination}`;
 
   useEffect(() => {
     if (loading) {
@@ -152,7 +154,7 @@ export function DenominationPage() {
   };
 
   return (
-    <main className="public-page">
+    <main className={pageThemeClass}>
       <section className="public-shell">
         <header className="public-header">
           <HamburgerMenu />
@@ -179,7 +181,7 @@ export function DenominationPage() {
             </>
           ) : (
             <>
-              <p className="denomination-kicker">{`${selected.denomination} bs >`}</p>
+              <h1 className="denomination-kicker">{denominationTitle}</h1>
 
               <section className="denomination-actions">
                 <button type="button" className="denomination-action" onClick={handleScanClick}>

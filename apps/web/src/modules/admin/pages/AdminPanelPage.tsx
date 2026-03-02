@@ -46,6 +46,10 @@ function parseOptionalNumber(value: string) {
   return parsed;
 }
 
+function hasTuningPatchValues(patch: ScanTuningOverride["patch"]) {
+  return Object.values(patch).some((value) => typeof value === "number" && Number.isFinite(value));
+}
+
 export function AdminPanelPage() {
   const [users, setUsers] = useState<AdminUserRecord[]>(() => getAdminUsers());
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -58,6 +62,7 @@ export function AdminPanelPage() {
     createScanTuningOverride({ label: "", userAgentPattern: "" })
   );
   const [tuningNotice, setTuningNotice] = useState<string | null>(null);
+  const [showTuningAdvanced, setShowTuningAdvanced] = useState(false);
 
   const selectedUser = useMemo(
     () => users.find((user) => user.uid === selectedUserId) ?? null,
@@ -131,15 +136,23 @@ export function AdminPanelPage() {
 
   const resetTuningDraft = () => {
     setTuningDraft(createScanTuningOverride({ label: "", userAgentPattern: "" }));
+    setShowTuningAdvanced(false);
   };
 
   const saveTuningDraft = () => {
-    if (!tuningDraft.userAgentPattern.trim()) {
+    const userAgentPattern = tuningDraft.userAgentPattern.trim();
+    if (!userAgentPattern) {
       setTuningNotice("Debes ingresar un patron de User-Agent para identificar el modelo.");
       return;
     }
 
-    upsertScanTuningOverride(tuningDraft);
+    const label = tuningDraft.label.trim() || userAgentPattern;
+
+    upsertScanTuningOverride({
+      ...tuningDraft,
+      label,
+      userAgentPattern
+    });
     reloadTuningRows();
     resetTuningDraft();
     setTuningNotice("Perfil de tuning guardado.");
@@ -312,25 +325,11 @@ export function AdminPanelPage() {
         <section className="admin-card">
           <div className="admin-card-head">
             <h2>Tuning de escaner por modelo</h2>
-            <button type="button" className="menu-toggle" onClick={reloadTuningRows}>
-              Actualizar
-            </button>
           </div>
 
           <div className="admin-quick-grid">
             <label className="admin-field">
-              <span>Etiqueta</span>
-              <input
-                className="admin-input"
-                type="text"
-                placeholder="Ej: Redmi Note 12"
-                value={tuningDraft.label}
-                onChange={(event) => setTuningDraft((prev) => ({ ...prev, label: event.target.value }))}
-              />
-            </label>
-
-            <label className="admin-field">
-              <span>Patron User-Agent (obligatorio)</span>
+              <span>Modelo (patron User-Agent)</span>
               <input
                 className="admin-input"
                 type="text"
@@ -384,89 +383,100 @@ export function AdminPanelPage() {
             </label>
           </div>
 
-          <p className="admin-note">Deja vacio un campo numerico para usar el valor automatico.</p>
-
-          <div className="admin-inline-grid">
-            <label className="admin-field">
-              <span>baseDelayMs</span>
-              <input
-                className="admin-input"
-                type="number"
-                value={tuningDraft.patch.baseDelayMs ?? ""}
-                onChange={(event) => updateTuningPatch("baseDelayMs", event.target.value)}
-              />
-            </label>
-            <label className="admin-field">
-              <span>ocrMissDelayMs</span>
-              <input
-                className="admin-input"
-                type="number"
-                value={tuningDraft.patch.ocrMissDelayMs ?? ""}
-                onChange={(event) => updateTuningPatch("ocrMissDelayMs", event.target.value)}
-              />
-            </label>
-            <label className="admin-field">
-              <span>readHitDelayMs</span>
-              <input
-                className="admin-input"
-                type="number"
-                value={tuningDraft.patch.readHitDelayMs ?? ""}
-                onChange={(event) => updateTuningPatch("readHitDelayMs", event.target.value)}
-              />
-            </label>
-            <label className="admin-field">
-              <span>requiredHits</span>
-              <input
-                className="admin-input"
-                type="number"
-                value={tuningDraft.patch.requiredHits ?? ""}
-                onChange={(event) => updateTuningPatch("requiredHits", event.target.value)}
-              />
-            </label>
-            <label className="admin-field">
-              <span>fastAcceptConfidence</span>
-              <input
-                className="admin-input"
-                type="number"
-                value={tuningDraft.patch.fastAcceptConfidence ?? ""}
-                onChange={(event) => updateTuningPatch("fastAcceptConfidence", event.target.value)}
-              />
-            </label>
-            <label className="admin-field">
-              <span>immediateAcceptConfidence</span>
-              <input
-                className="admin-input"
-                type="number"
-                value={tuningDraft.patch.immediateAcceptConfidence ?? ""}
-                onChange={(event) => updateTuningPatch("immediateAcceptConfidence", event.target.value)}
-              />
-            </label>
-            <label className="admin-field">
-              <span>qualityAcceptFloor</span>
-              <input
-                className="admin-input"
-                type="number"
-                value={tuningDraft.patch.qualityAcceptFloor ?? ""}
-                onChange={(event) => updateTuningPatch("qualityAcceptFloor", event.target.value)}
-              />
-            </label>
-            <label className="admin-field">
-              <span>maxOcrMs</span>
-              <input
-                className="admin-input"
-                type="number"
-                value={tuningDraft.patch.maxOcrMs ?? ""}
-                onChange={(event) => updateTuningPatch("maxOcrMs", event.target.value)}
-              />
-            </label>
+          <div className="admin-inline-actions">
+            <button type="button" className="menu-toggle" onClick={() => setShowTuningAdvanced((prev) => !prev)}>
+              {showTuningAdvanced ? "Ocultar ajustes avanzados" : "Mostrar ajustes avanzados"}
+            </button>
           </div>
+
+          {showTuningAdvanced ? (
+            <>
+              <p className="admin-note">Deja vacio un campo numerico para usar el valor automatico.</p>
+              <div className="admin-inline-grid">
+                <label className="admin-field">
+                  <span>baseDelayMs</span>
+                  <input
+                    className="admin-input"
+                    type="number"
+                    value={tuningDraft.patch.baseDelayMs ?? ""}
+                    onChange={(event) => updateTuningPatch("baseDelayMs", event.target.value)}
+                  />
+                </label>
+                <label className="admin-field">
+                  <span>ocrMissDelayMs</span>
+                  <input
+                    className="admin-input"
+                    type="number"
+                    value={tuningDraft.patch.ocrMissDelayMs ?? ""}
+                    onChange={(event) => updateTuningPatch("ocrMissDelayMs", event.target.value)}
+                  />
+                </label>
+                <label className="admin-field">
+                  <span>readHitDelayMs</span>
+                  <input
+                    className="admin-input"
+                    type="number"
+                    value={tuningDraft.patch.readHitDelayMs ?? ""}
+                    onChange={(event) => updateTuningPatch("readHitDelayMs", event.target.value)}
+                  />
+                </label>
+                <label className="admin-field">
+                  <span>requiredHits</span>
+                  <input
+                    className="admin-input"
+                    type="number"
+                    value={tuningDraft.patch.requiredHits ?? ""}
+                    onChange={(event) => updateTuningPatch("requiredHits", event.target.value)}
+                  />
+                </label>
+                <label className="admin-field">
+                  <span>fastAcceptConfidence</span>
+                  <input
+                    className="admin-input"
+                    type="number"
+                    value={tuningDraft.patch.fastAcceptConfidence ?? ""}
+                    onChange={(event) => updateTuningPatch("fastAcceptConfidence", event.target.value)}
+                  />
+                </label>
+                <label className="admin-field">
+                  <span>immediateAcceptConfidence</span>
+                  <input
+                    className="admin-input"
+                    type="number"
+                    value={tuningDraft.patch.immediateAcceptConfidence ?? ""}
+                    onChange={(event) => updateTuningPatch("immediateAcceptConfidence", event.target.value)}
+                  />
+                </label>
+                <label className="admin-field">
+                  <span>qualityAcceptFloor</span>
+                  <input
+                    className="admin-input"
+                    type="number"
+                    value={tuningDraft.patch.qualityAcceptFloor ?? ""}
+                    onChange={(event) => updateTuningPatch("qualityAcceptFloor", event.target.value)}
+                  />
+                </label>
+                <label className="admin-field">
+                  <span>maxOcrMs</span>
+                  <input
+                    className="admin-input"
+                    type="number"
+                    value={tuningDraft.patch.maxOcrMs ?? ""}
+                    onChange={(event) => updateTuningPatch("maxOcrMs", event.target.value)}
+                  />
+                </label>
+              </div>
+            </>
+          ) : (
+            <p className="admin-note">Modo simple activo: usa configuracion turbo global por defecto.</p>
+          )}
 
           <div className="admin-quick-actions">
             <button type="button" className="auth-button" onClick={saveTuningDraft}>
               Guardar perfil
             </button>
             <button type="button" className="menu-toggle" onClick={resetTuningDraft}>
-              Limpiar
+              Nuevo
             </button>
           </div>
 
@@ -492,7 +502,7 @@ export function AdminPanelPage() {
                 ) : (
                   tuningRows.map((row) => (
                     <tr key={row.id}>
-                      <td>{row.label}</td>
+                      <td>{row.label || row.userAgentPattern}</td>
                       <td>{row.userAgentPattern}</td>
                       <td>{row.denomination}</td>
                       <td>{row.tierOverride}</td>
@@ -516,6 +526,7 @@ export function AdminPanelPage() {
                             className="home-menu-item"
                             onClick={() => {
                               setTuningDraft(row);
+                              setShowTuningAdvanced(hasTuningPatchValues(row.patch));
                               setTuningNotice("Editando perfil existente.");
                             }}
                           >
