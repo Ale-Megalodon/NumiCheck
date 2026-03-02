@@ -16,6 +16,21 @@ export type DeviceProfile = {
   maxOcrMs: number;
 };
 
+export type DeviceProfilePatch = Partial<
+  Pick<
+    DeviceProfile,
+    | "baseDelayMs"
+    | "badFrameDelayMs"
+    | "ocrMissDelayMs"
+    | "readHitDelayMs"
+    | "requiredHits"
+    | "fastAcceptConfidence"
+    | "immediateAcceptConfidence"
+    | "qualityAcceptFloor"
+    | "maxOcrMs"
+  >
+>;
+
 export type DeviceProfileResolution = {
   profile: DeviceProfile;
   source: "auto" | "override";
@@ -117,6 +132,23 @@ function sanitizeProfile(profile: DeviceProfile): DeviceProfile {
     qualityAcceptFloor: clamp(Math.round(profile.qualityAcceptFloor), 48, 90),
     maxOcrMs: clamp(Math.round(profile.maxOcrMs), 320, 1600)
   };
+}
+
+export function mergeDeviceProfileWithPatch(
+  baseProfile: DeviceProfile,
+  patch: DeviceProfilePatch | null | undefined
+): DeviceProfile {
+  if (!patch) {
+    return sanitizeProfile(baseProfile);
+  }
+
+  const merged: DeviceProfile = {
+    ...baseProfile,
+    ...patch,
+    tier: baseProfile.tier
+  };
+
+  return sanitizeProfile(merged);
 }
 
 export function resolveDeviceProfileForDenomination(denomination: ScannerDenomination): DeviceProfileResolution {

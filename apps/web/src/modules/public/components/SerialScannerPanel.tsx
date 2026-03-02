@@ -1,12 +1,18 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "../../../app/providers/AuthProvider";
 import { getSharedOcrWorker, subscribeOcrWarmup } from "../services/ocrWorkerStore";
+import {
+  getPublicUserSettings,
+  subscribePublicUserSettings,
+  type UserScanPatch
+} from "../services/publicUserSettingsStore";
 import { analyzeFrameQuality } from "../utils/frameQuality";
 import {
   getAdaptiveThresholds,
   recordScanSample,
   sortZoneLabelsByTelemetry
 } from "../utils/scanTelemetryStore";
-import { resolveDeviceProfileForDenomination } from "../utils/deviceProfile";
+import { mergeDeviceProfileWithPatch, resolveDeviceProfileForDenomination } from "../utils/deviceProfile";
 import { buildScanRegions, type ScannerDenomination } from "../utils/scanRegionProfiles";
 import { extractSerialDigitsFromOcr, type OcrDigitBounds } from "../utils/serialOcr";
 
@@ -38,11 +44,11 @@ const QUALITY_SAMPLE_WIDTH = 148;
 const QUALITY_SAMPLE_HEIGHT = 44;
 const MIN_CONFIDENCE = 30;
 const SNAP_FLASH_MS = 90;
-const TURBO_ACCEPT_CONFIDENCE = 70;
-const TURBO_IMMEDIATE_CONFIDENCE = 74;
 const SUPER_TURBO_PREVIEW_MIN_CONFIDENCE = 56;
-const SUPER_TURBO_SECONDARY_WINDOW_MS = 760;
-const SUPER_TURBO_MAX_SCAN_MS = 1000;
+const TURBO_SECONDARY_WINDOW_MIN_MS = 380;
+const TURBO_SECONDARY_WINDOW_MAX_MS = 1100;
+const TURBO_SCAN_TOTAL_MIN_MS = 620;
+const TURBO_SCAN_TOTAL_MAX_MS = 1700;
 const MIN_QUALITY_TO_ATTEMPT_OCR = 32;
 const PRIMARY_ZONE_BY_DENOMINATION: Record<ScannerDenomination, string> = {
   "10": "Zona superior",
@@ -148,8 +154,25 @@ export function SerialScannerPanel({
   onDetected,
   onClose
 }: SerialScannerPanelProps) {
+  const { user } = useAuth();
+  const [accountScanPatch, setAccountScanPatch] = useState<UserScanPatch>(() => getPublicUserSettings(user?.uid).scanPatch);
+
+  useEffect(() => {
+    const syncSettings = () => {
+      setAccountScanPatch(getPublicUserSettings(user?.uid).scanPatch);
+    };
+
+    syncSettings();
+    const unsubscribe = subscribePublicUserSettings(syncSettings);
+    return unsubscribe;
+  }, [user?.uid]);
+
   const profileResolution = useMemo(() => resolveDeviceProfileForDenomination(denomination), [denomination]);
-  const deviceProfile = profileResolution.profile;
+  const deviceProfile = useMemo(
+    () => mergeDeviceProfileWithPatch(profileResolution.profile, accountScanPatch),
+    [accountScanPatch, profileResolution.profile]
+  );
+  const hasAccountPatch = useMemo(() => Object.keys(accountScanPatch).length > 0, [accountScanPatch]);
   const adaptiveThresholds = useMemo(
     () => getAdaptiveThresholds(denomination, deviceProfile),
     [denomination, deviceProfile]
@@ -401,8 +424,19 @@ export function SerialScannerPanel({
           : buildScanRegions(denomination, video.videoWidth, video.videoHeight);
 
       const quickRegions = getQuickRegionsForDenomination(denomination, regions);
-      const quickAcceptConfidence = Math.max(MIN_CONFIDENCE, TURBO_ACCEPT_CONFIDENCE);
-      const immediateAcceptConfidence = Math.max(quickAcceptConfidence, TURBO_IMMEDIATE_CONFIDENCE);
+      const quickAcceptConfidence = Math.max(MIN_CONFIDENCE, adaptiveThresholds.fastAcceptConfidence - 2);
+      const immediateAcceptConfidence = Math.max(
+        quickAcceptConfidence,
+        adaptiveThresholds.immediateAcceptConfidence - 1
+      );
+      const secondaryWindowMs = Math.min(
+        TURBO_SECONDARY_WINDOW_MAX_MS,
+        Math.max(TURBO_SECONDARY_WINDOW_MIN_MS, deviceProfile.baseDelayMs + deviceProfile.readHitDelayMs + 520)
+      );
+      const maxScanMs = Math.min(
+        TURBO_SCAN_TOTAL_MAX_MS,
+        Math.max(TURBO_SCAN_TOTAL_MIN_MS, deviceProfile.baseDelayMs + deviceProfile.maxOcrMs + 120)
+      );
       const tryQuickRegion = async (region: (typeof quickRegions)[number], regionIndex: number) => {
         setZoneLabel(region.label);
         observedZone = region.label;
@@ -488,13 +522,13 @@ export function SerialScannerPanel({
         !acceptedInPrimary &&
         secondaryRegion &&
         bestConfidenceAfterPrimary < quickAcceptConfidence &&
-        elapsedAfterPrimary < SUPER_TURBO_SECONDARY_WINDOW_MS
+        elapsedAfterPrimary < secondaryWindowMs
       ) {
         await tryQuickRegion(secondaryRegion, 1);
       }
 
       const elapsedTotal = performance.now() - scanStartedAt;
-      if (elapsedTotal > SUPER_TURBO_MAX_SCAN_MS && !best) {
+      if (elapsedTotal > maxScanMs && !best) {
         bestHint = "No se pudo leer en modo turbo. Reintenta o usa subir imagen.";
       }
 
@@ -568,7 +602,7 @@ export function SerialScannerPanel({
         </div>
         <div className="scanner-header-actions">
           <span className="scanner-tier-badge">
-            {deviceProfile.tier.toUpperCase()} / {profileResolution.source.toUpperCase()}
+            {deviceProfile.tier.toUpperCase()} / {hasAccountPatch ? "CUENTA" : profileResolution.source.toUpperCase()}
           </span>
           <button type="button" className="scanner-close" onClick={onClose} aria-label="Cerrar escaner">
             X

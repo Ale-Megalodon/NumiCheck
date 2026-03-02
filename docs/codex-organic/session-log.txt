@@ -368,3 +368,23 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
   - boton "Vaciar historial"
   - skeletons durante carga
 - Build web validado correctamente.
+[2026-03-02 | Configuracion por cuenta + modo oscuro]
+- Se finaliza la pagina /configuracion para usuarios autenticados:
+  - toggle de modo oscuro (activar/desactivar)
+  - tabla de velocidad de escaneo por cuenta (campos de tuning + guardar/restablecer)
+  - skeletons para estado de carga
+- Se crea/usa store de settings por usuario (localStorage por UID):
+  - darkMode
+  - scanPatch (parametros OCR)
+- Tema oscuro global aplicado por cuenta desde AppEntry:
+  - si no hay sesion activa, no aplica modo oscuro
+- Escaner integrado con settings de cuenta:
+  - merge del perfil de dispositivo + patch del usuario
+  - umbrales turbo y ventanas de escaneo ajustados con esos valores
+  - badge del escaner muestra cuando usa perfil de CUENTA
+- CSS ampliado:
+  - bloques visuales de configuracion
+  - tema dark profesional (#264653 base) para tarjetas, menus, botones y overlays
+  - efecto neón en opcion seleccionada de modo oscuro
+  - skeletons dark con pulso suave
+- Build web validado correctamente.
