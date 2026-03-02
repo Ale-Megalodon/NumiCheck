@@ -39,6 +39,11 @@ type Candidate = {
   regionIndex: number;
 };
 
+type CandidateVote = Candidate & {
+  votes: number;
+  firstSeenAt: number;
+};
+
 const GUIDE_KEY = "numicheck_scan_guide_seen_v1";
 const QUALITY_SAMPLE_WIDTH = 148;
 const QUALITY_SAMPLE_HEIGHT = 44;
@@ -51,12 +56,16 @@ const TURBO_SECONDARY_WINDOW_MAX_MS = 760;
 const TURBO_SCAN_TOTAL_MIN_MS = 540;
 const TURBO_SCAN_TOTAL_MAX_MS = 1300;
 const MIN_QUALITY_TO_ATTEMPT_OCR = 18;
-const SCANNER_ENGINE_VERSION = "Turbo v4";
-const BURST_CAPTURE_ATTEMPTS = 3;
-const BURST_CAPTURE_DELAY_MS = 55;
+const SCANNER_ENGINE_VERSION = "Turbo v5";
+const PRECAPTURE_WARMUP_FRAMES = 3;
+const PRECAPTURE_FRAME_DELAY_MS = 38;
+const BURST_CAPTURE_ATTEMPTS = 4;
+const BURST_CAPTURE_DELAY_MS = 48;
+const PASS_TWO_CAPTURE_ATTEMPTS = 2;
 const OCR_QUALITY_CONFIDENCE_BOOST_FACTOR = 0.12;
 const OCR_FULL_LENGTH_BONUS = 10;
 const OCR_ALMOST_FULL_LENGTH_BONUS = 6;
+const VOTE_ACCEPT_MIN_HITS = 2;
 const PRIMARY_ZONE_BY_DENOMINATION: Record<ScannerDenomination, string> = {
   "10": "Zona superior",
   "20": "Zona superior",
@@ -106,6 +115,30 @@ function getCandidateZoneLabel(candidate: Candidate | null) {
 
 function getCandidateSerial(candidate: Candidate | null) {
   return candidate ? candidate.serial : "";
+}
+
+function chooseBestCandidateFromVotes(voteMap: Map<string, CandidateVote>) {
+  if (voteMap.size === 0) {
+    return null;
+  }
+
+  const ordered = Array.from(voteMap.values()).sort((a, b) => {
+    if (b.votes !== a.votes) {
+      return b.votes - a.votes;
+    }
+
+    if (b.score !== a.score) {
+      return b.score - a.score;
+    }
+
+    if (b.confidence !== a.confidence) {
+      return b.confidence - a.confidence;
+    }
+
+    return a.firstSeenAt - b.firstSeenAt;
+  });
+
+  return ordered[0] ?? null;
 }
 
 function drawRegionForOcr(
@@ -265,6 +298,16 @@ export function SerialScannerPanel({
   const [isScanning, setIsScanning] = useState(false);
   const [scanFlash, setScanFlash] = useState(false);
   const [restartToken, setRestartToken] = useState(0);
+  const [lastScanMs, setLastScanMs] = useState<number | null>(null);
+  const [sessionScanAttempts, setSessionScanAttempts] = useState(0);
+  const [sessionFirstTryHits, setSessionFirstTryHits] = useState(0);
+  const sessionFirstTryRate = useMemo(() => {
+    if (sessionScanAttempts <= 0) {
+      return 0;
+    }
+
+    return Math.round((sessionFirstTryHits / sessionScanAttempts) * 100);
+  }, [sessionFirstTryHits, sessionScanAttempts]);
 
   const stopMedia = () => {
     const stream = streamRef.current;
@@ -345,6 +388,7 @@ export function SerialScannerPanel({
         setLastConfidence(0);
         setQualityScore(0);
         setZoneLabel("Zona central");
+        setLastScanMs(null);
 
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
@@ -473,8 +517,10 @@ export function SerialScannerPanel({
     let observedQuality = 0;
     let observedConfidence = 0;
     let observedZone = "Zona central";
+    let bestScore = Number.NEGATIVE_INFINITY;
     let totalOcrMs = 0;
     let ocrCalls = 0;
+    let firstPassHitForMetrics = false;
 
     try {
       const scanStartedAt = performance.now();
@@ -487,27 +533,56 @@ export function SerialScannerPanel({
           : buildScanRegions(denomination, video.videoWidth, video.videoHeight);
 
       const quickRegions = getQuickRegionsForDenomination(denomination, regions);
-      const quickAcceptConfidence = Math.max(MIN_CONFIDENCE, adaptiveThresholds.fastAcceptConfidence - 8);
+      const quickAcceptConfidence = Math.max(MIN_CONFIDENCE, adaptiveThresholds.fastAcceptConfidence - 10);
       const immediateAcceptConfidence = Math.max(
         quickAcceptConfidence,
-        adaptiveThresholds.immediateAcceptConfidence - 6
+        adaptiveThresholds.immediateAcceptConfidence - 8
       );
-      const qualityAcceptFloor = Math.max(46, adaptiveThresholds.qualityAcceptFloor - 14);
+      const voteAcceptConfidence = Math.max(MIN_CONFIDENCE + 8, quickAcceptConfidence - 8);
+      const qualityAcceptFloor = Math.max(42, adaptiveThresholds.qualityAcceptFloor - 16);
       const secondaryWindowMs = Math.min(
         TURBO_SECONDARY_WINDOW_MAX_MS,
         Math.max(TURBO_SECONDARY_WINDOW_MIN_MS, deviceProfile.baseDelayMs + deviceProfile.readHitDelayMs + 240)
       );
       const maxScanMs = Math.min(
         TURBO_SCAN_TOTAL_MAX_MS,
-        Math.max(TURBO_SCAN_TOTAL_MIN_MS, deviceProfile.baseDelayMs + deviceProfile.maxOcrMs - 40)
+        Math.max(TURBO_SCAN_TOTAL_MIN_MS, deviceProfile.baseDelayMs + deviceProfile.maxOcrMs - 80)
       );
-      const ocrTimeoutMs = Math.min(560, Math.max(260, deviceProfile.maxOcrMs - 110));
-      const horizontalOffsets = [0, -0.018, 0.018];
+      const quickOcrTimeoutMs = Math.min(460, Math.max(220, deviceProfile.maxOcrMs - 180));
+      const deepOcrTimeoutMs = Math.min(620, Math.max(320, deviceProfile.maxOcrMs - 30));
+      const horizontalOffsets = [0, -0.018, 0.018, -0.032, 0.032];
+      const voteMap = new Map<string, CandidateVote>();
 
-      const tryQuickRegion = async (
+      const registerCandidateVote = (candidate: Candidate, burstIndex: number) => {
+        const existing = voteMap.get(candidate.serial);
+        if (!existing) {
+          voteMap.set(candidate.serial, {
+            ...candidate,
+            votes: 1,
+            firstSeenAt: burstIndex
+          });
+          return 1;
+        }
+
+        const nextVotes = existing.votes + 1;
+        const improved =
+          candidate.score > existing.score ||
+          candidate.confidence > existing.confidence ||
+          candidate.quality > existing.quality;
+        voteMap.set(candidate.serial, {
+          ...(improved ? candidate : existing),
+          votes: nextVotes,
+          firstSeenAt: existing.firstSeenAt
+        });
+        return nextVotes;
+      };
+
+      const tryRegionRead = async (
         region: (typeof quickRegions)[number],
         regionIndex: number,
-        burstIndex: number
+        burstIndex: number,
+        mode: "quick" | "deep",
+        passIndex: number
       ) => {
         const shifted = shiftRegion(
           region,
@@ -540,20 +615,20 @@ export function SerialScannerPanel({
         setQualityScore(quality.score);
         setQualityLevel(quality.level);
 
-        if (!quality.isGood && quality.score < MIN_QUALITY_TO_ATTEMPT_OCR) {
+        if (mode === "quick" && !quality.isGood && quality.score < MIN_QUALITY_TO_ATTEMPT_OCR) {
           bestHint = `${region.label}: ${quality.hint}`;
           return false;
         }
 
-        drawRegionForOcr(frameCanvas, canvas, shifted, "quick");
+        drawRegionForOcr(frameCanvas, canvas, shifted, mode);
 
         const ocrStart = performance.now();
-        const result = await recognizeWithTimeout(worker, canvas, ocrTimeoutMs);
+        const result = await recognizeWithTimeout(worker, canvas, mode === "quick" ? quickOcrTimeoutMs : deepOcrTimeoutMs);
         const ocrElapsed = Math.round(performance.now() - ocrStart);
         totalOcrMs += ocrElapsed;
         ocrCalls += 1;
         if (!result) {
-          bestHint = `${region.label}: lectura lenta, vuelve a intentar.`;
+          bestHint = `${region.label}: lectura lenta en modo ${mode}.`;
           return false;
         }
 
@@ -573,17 +648,24 @@ export function SerialScannerPanel({
           candidate.length,
           digitBounds.maxDigits
         );
-        observedConfidence = Math.max(observedConfidence, confidence);
+        const boostedConfidence = mode === "deep" ? clamp(confidence + 4, MIN_CONFIDENCE, 99) : confidence;
+        observedConfidence = Math.max(observedConfidence, boostedConfidence);
 
-        if (confidence < MIN_CONFIDENCE) {
+        if (boostedConfidence < MIN_CONFIDENCE) {
           bestHint = `No legible en ${region.label}.`;
           return false;
         }
 
-        const candidateScore = confidence * 0.64 + quality.score * 0.3 + region.priority * 10 - burstIndex * 1.5;
+        const candidateScore =
+          boostedConfidence * 0.64 +
+          quality.score * 0.3 +
+          region.priority * 10 -
+          burstIndex * 1.4 +
+          (mode === "deep" ? 2 : 0) +
+          (passIndex === 2 ? 1 : 0);
         const current: Candidate = {
           serial: candidate,
-          confidence,
+          confidence: boostedConfidence,
           quality: quality.score,
           score: candidateScore,
           zoneLabel: region.label,
@@ -592,48 +674,104 @@ export function SerialScannerPanel({
 
         if (!best || current.score > best.score) {
           best = current;
+          bestScore = current.score;
         }
+        const votes = registerCandidateVote(current, burstIndex + passIndex * 10);
 
-        const quickAccept = confidence >= quickAcceptConfidence;
-        const immediateAccept = confidence >= immediateAcceptConfidence && quality.score >= qualityAcceptFloor;
-        const qualityDrivenAccept = quality.score >= 78 && confidence >= MIN_CONFIDENCE;
+        const quickAccept = boostedConfidence >= quickAcceptConfidence;
+        const immediateAccept = boostedConfidence >= immediateAcceptConfidence && quality.score >= qualityAcceptFloor;
+        const voteAccept = votes >= VOTE_ACCEPT_MIN_HITS && boostedConfidence >= voteAcceptConfidence;
+        const deepModeAccept =
+          mode === "deep" &&
+          boostedConfidence >= voteAcceptConfidence - 6 &&
+          quality.score >= Math.max(38, qualityAcceptFloor - 8);
 
-        return quickAccept || immediateAccept || qualityDrivenAccept;
+        return quickAccept || immediateAccept || voteAccept || deepModeAccept;
       };
 
       const primaryRegion = quickRegions[0] ?? null;
       const secondaryRegion = quickRegions[1] ?? null;
 
-      let acceptedInBurst = false;
-      for (let burstIndex = 0; burstIndex < BURST_CAPTURE_ATTEMPTS; burstIndex += 1) {
+      const runPass = async (passIndex: 1 | 2, mode: "quick" | "deep", attempts: number) => {
+        for (let burstIndex = 0; burstIndex < attempts; burstIndex += 1) {
+          if (performance.now() - scanStartedAt >= maxScanMs) {
+            break;
+          }
+
+          frameContext.drawImage(video, 0, 0, frameCanvas.width, frameCanvas.height);
+          let acceptedInFrame = false;
+
+          if (primaryRegion) {
+            acceptedInFrame = await tryRegionRead(primaryRegion, 0, burstIndex, mode, passIndex);
+          }
+
+          const elapsedAfterPrimary = performance.now() - scanStartedAt;
+          const bestConfidenceAfterPrimary = getCandidateConfidence(best);
+          if (
+            !acceptedInFrame &&
+            secondaryRegion &&
+            bestConfidenceAfterPrimary < quickAcceptConfidence &&
+            elapsedAfterPrimary < secondaryWindowMs + (passIndex === 2 ? 220 : 0)
+          ) {
+            acceptedInFrame = await tryRegionRead(secondaryRegion, 1, burstIndex, mode, passIndex);
+          }
+
+          if (
+            !acceptedInFrame &&
+            mode === "quick" &&
+            primaryRegion &&
+            bestConfidenceAfterPrimary < quickAcceptConfidence - 6
+          ) {
+            acceptedInFrame = await tryRegionRead(primaryRegion, 0, burstIndex, "deep", passIndex);
+          }
+
+          if (acceptedInFrame) {
+            return true;
+          }
+
+          if (burstIndex < attempts - 1) {
+            await delay(BURST_CAPTURE_DELAY_MS);
+          }
+        }
+
+        return false;
+      };
+
+      setStatusText("Super turbo: estabilizando enfoque...");
+      for (let frameIndex = 0; frameIndex < PRECAPTURE_WARMUP_FRAMES; frameIndex += 1) {
         frameContext.drawImage(video, 0, 0, frameCanvas.width, frameCanvas.height);
-        acceptedInBurst = false;
-
-        if (primaryRegion) {
-          acceptedInBurst = await tryQuickRegion(primaryRegion, 0, burstIndex);
-        }
-
-        const elapsedAfterPrimary = performance.now() - scanStartedAt;
-        const bestConfidenceAfterPrimary = getCandidateConfidence(best);
-        if (
-          !acceptedInBurst &&
-          secondaryRegion &&
-          bestConfidenceAfterPrimary < quickAcceptConfidence &&
-          elapsedAfterPrimary < secondaryWindowMs
-        ) {
-          acceptedInBurst = await tryQuickRegion(secondaryRegion, 1, burstIndex);
-        }
-
-        if (acceptedInBurst || performance.now() - scanStartedAt >= maxScanMs) {
-          break;
-        }
-
-        if (burstIndex < BURST_CAPTURE_ATTEMPTS - 1) {
-          await delay(BURST_CAPTURE_DELAY_MS);
+        if (frameIndex < PRECAPTURE_WARMUP_FRAMES - 1) {
+          await delay(PRECAPTURE_FRAME_DELAY_MS);
         }
       }
 
+      setStatusText("Super turbo: pase 1...");
+      const acceptedInPassOne = await runPass(1, "quick", BURST_CAPTURE_ATTEMPTS);
+      let acceptedOverall = acceptedInPassOne;
+
+      if (!acceptedOverall && performance.now() - scanStartedAt < maxScanMs) {
+        setStatusText("Super turbo: pase 2 automatico...");
+        acceptedOverall = await runPass(2, "deep", PASS_TWO_CAPTURE_ATTEMPTS);
+      }
+
+      const votedCandidate = chooseBestCandidateFromVotes(voteMap);
+      if (
+        votedCandidate &&
+        (votedCandidate.votes >= VOTE_ACCEPT_MIN_HITS || votedCandidate.score >= bestScore - 6)
+      ) {
+        best = {
+          serial: votedCandidate.serial,
+          confidence: votedCandidate.confidence,
+          quality: votedCandidate.quality,
+          score: votedCandidate.score,
+          zoneLabel: votedCandidate.zoneLabel,
+          regionIndex: votedCandidate.regionIndex
+        };
+        bestScore = votedCandidate.score;
+      }
+
       const elapsedTotal = Math.round(performance.now() - scanStartedAt);
+      setLastScanMs(elapsedTotal);
       if (elapsedTotal > maxScanMs && !best) {
         bestHint = "No se pudo leer en modo turbo. Reintenta o usa subir imagen.";
       }
@@ -642,19 +780,24 @@ export function SerialScannerPanel({
       const acceptedQuality = getCandidateQuality(best);
       const acceptedZone = getCandidateZoneLabel(best);
       const acceptedSerial = getCandidateSerial(best);
-      const acceptedEffectiveness = Math.round(acceptedConfidence * 0.25 + acceptedQuality * 0.75);
+      const acceptedVotes = acceptedSerial ? (voteMap.get(acceptedSerial)?.votes ?? 0) : 0;
+      const acceptedEffectiveness = Math.round(acceptedConfidence * 0.22 + acceptedQuality * 0.78);
       const hasAcceptedCandidate =
         acceptedSerial.length >= digitBounds.minDigits &&
-        (acceptedInBurst ||
+        (acceptedOverall ||
+          acceptedVotes >= VOTE_ACCEPT_MIN_HITS ||
           acceptedConfidence >= SUPER_TURBO_PREVIEW_MIN_CONFIDENCE ||
           acceptedEffectiveness >= SUPER_TURBO_MIN_EFFECTIVENESS);
 
       if (hasAcceptedCandidate) {
+        firstPassHitForMetrics = acceptedInPassOne;
         setLastConfidence(acceptedConfidence);
         setQualityScore(acceptedQuality);
         setZoneLabel(acceptedZone);
         setScanStatus("ready");
-        setStatusText(`Turbo listo en ${elapsedTotal}ms: "${acceptedSerial}" - B (${acceptedConfidence}%)`);
+        setStatusText(
+          `Turbo listo en ${elapsedTotal}ms: "${acceptedSerial}" - B (${acceptedConfidence}%, votos ${acceptedVotes})`
+        );
 
         recordScanSample(denomination, {
           ocrMs: ocrCalls > 0 ? Math.round(totalOcrMs / ocrCalls) : Math.min(deviceProfile.maxOcrMs, 380),
@@ -696,7 +839,12 @@ export function SerialScannerPanel({
     } catch {
       setScanStatus("ready");
       setStatusText("Fallo de lectura. Intenta nuevamente.");
+      setLastScanMs(null);
     } finally {
+      setSessionScanAttempts((prev) => prev + 1);
+      if (firstPassHitForMetrics) {
+        setSessionFirstTryHits((prev) => prev + 1);
+      }
       setIsScanning(false);
     }
   };
@@ -774,6 +922,12 @@ export function SerialScannerPanel({
         <p className="scanner-status">{statusText}</p>
         {scanStatus === "starting" ? <p className="scanner-progress">Cargando OCR... {ocrProgress}%</p> : null}
         {lastConfidence > 0 ? <p className="scanner-progress">Confianza OCR: {lastConfidence}%</p> : null}
+        {lastScanMs !== null ? <p className="scanner-progress">Tiempo de lectura: {lastScanMs}ms</p> : null}
+        {sessionScanAttempts > 0 ? (
+          <p className="scanner-progress">
+            Primer intento (sesion): {sessionFirstTryRate}% ({sessionFirstTryHits}/{sessionScanAttempts})
+          </p>
+        ) : null}
         {errorText ? <p className="manual-error">{errorText}</p> : null}
       </div>
 
