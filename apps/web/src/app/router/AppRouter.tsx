@@ -4,6 +4,7 @@ import { LoginPage } from "../../modules/auth/pages/LoginPage";
 import { DenominationPage } from "../../modules/public/pages/DenominationPage";
 import { FeaturePlaceholderPage } from "../../modules/public/pages/FeaturePlaceholderPage";
 import { MainMenuPage } from "../../modules/public/pages/MainMenuPage";
+import { ProfilePage } from "../../modules/public/pages/ProfilePage";
 
 export function AppRouter() {
   return (
@@ -12,7 +13,7 @@ export function AppRouter() {
       <Route path="/control-interno-nc-a73k9q" element={<AdminPanelPage />} />
       <Route path="/billete/:denomination" element={<DenominationPage />} />
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/perfil" element={<FeaturePlaceholderPage title="Perfil" />} />
+      <Route path="/perfil" element={<ProfilePage />} />
       <Route path="/historial" element={<FeaturePlaceholderPage title="Historial" />} />
       <Route path="/configuracion" element={<FeaturePlaceholderPage title="Configuracion" />} />
       <Route path="/ayuda" element={<FeaturePlaceholderPage title="Ayuda" />} />

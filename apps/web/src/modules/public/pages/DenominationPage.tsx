@@ -1,7 +1,6 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { useAuth } from "../../../app/providers/AuthProvider";
-import { BrandWordmark } from "../../../shared/components/ui/BrandWordmark";
 import { registerAdminUserQuery } from "../../admin/services/adminUsersStore";
 import {
   type Denomination,
@@ -9,6 +8,7 @@ import {
   evaluateSeriesAgainstIllegalRanges
 } from "../../admin/services/illegalRangesStore";
 import { HamburgerMenu } from "../components/HamburgerMenu";
+import { PublicBrand } from "../components/PublicBrand";
 import { SerialScannerPanel } from "../components/SerialScannerPanel";
 import { BANKNOTE_OPTIONS } from "../constants/banknotes";
 import { warmupSharedOcrWorker } from "../services/ocrWorkerStore";
@@ -158,17 +158,7 @@ export function DenominationPage() {
       <section className="public-shell">
         <header className="public-header">
           <HamburgerMenu />
-          {loading ? (
-            <div className="public-brand-skeleton">
-              <div className="public-brand-logo-skeleton skeleton" aria-hidden="true" />
-              <div className="public-brand-wordmark-skeleton skeleton" aria-hidden="true" />
-            </div>
-          ) : (
-            <div className="public-brand">
-              <img className="public-brand-logo" src="/img/logoNumiCheck.jpeg" alt="Logo NumiCheck" />
-              <BrandWordmark className="public-brand-wordmark" weight="semibold" />
-            </div>
-          )}
+          <PublicBrand loading={loading} user={user} />
         </header>
 
         <section className="denomination-screen">

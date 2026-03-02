@@ -1,9 +1,9 @@
 ﻿import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../app/providers/AuthProvider";
-import { BrandWordmark } from "../../../shared/components/ui/BrandWordmark";
 import { MainMenuSkeleton } from "../components/MainMenuSkeleton";
 import { HamburgerMenu } from "../components/HamburgerMenu";
+import { PublicBrand } from "../components/PublicBrand";
 import { BANKNOTE_OPTIONS } from "../constants/banknotes";
 
 const ASSET_SOURCES = ["/img/logoNumiCheck.jpeg", ...BANKNOTE_OPTIONS.map((item) => item.imageSrc)];
@@ -24,7 +24,7 @@ function preloadAssets(sources: string[]) {
 
 export function MainMenuPage() {
   const navigate = useNavigate();
-  const { loading } = useAuth();
+  const { loading, user } = useAuth();
   const [assetsReady, setAssetsReady] = useState(false);
   const [showBackExitHint, setShowBackExitHint] = useState(false);
   const backGuardUntilRef = useRef(0);
@@ -103,17 +103,7 @@ export function MainMenuPage() {
       <section className="public-shell">
         <header className="public-header">
           <HamburgerMenu />
-          {showSkeleton ? (
-            <div className="public-brand-skeleton">
-              <div className="public-brand-logo-skeleton skeleton" aria-hidden="true" />
-              <div className="public-brand-wordmark-skeleton skeleton" aria-hidden="true" />
-            </div>
-          ) : (
-            <div className="public-brand">
-              <img className="public-brand-logo" src="/img/logoNumiCheck.jpeg" alt="Logo NumiCheck" />
-              <BrandWordmark className="public-brand-wordmark" weight="semibold" />
-            </div>
-          )}
+          <PublicBrand loading={showSkeleton} user={user} />
         </header>
 
         {showSkeleton ? (

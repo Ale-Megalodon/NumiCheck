@@ -322,3 +322,17 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
 - Se tematizan secciones clave: fondo de pagina, bloque principal, botones de accion, scanner y formulario manual.
 - Mantiene logo superior normal y estructura funcional existente.
 - Build web validado correctamente.
+[2026-03-02 | Perfil usuario en menu hamburguesa | foto, nombre y hashtags]
+- Se crea pagina real de Perfil y ruta /perfil (ya no placeholder).
+- Nuevo store de perfil publico por usuario (localStorage): nombre, avatar (emoji/subida/default) y hashtags.
+- El header publico ahora usa identidad del perfil en toda la web publica:
+  - foto de perfil reemplaza logo (redondeada cuando es avatar)
+  - nombre reemplaza wordmark con animacion de punto
+  - hashtags pequenos debajo del nombre
+- Perfil incluye:
+  - panel de emojis desde img/emojis/Flat_1..Flat_10 (carga solo los disponibles)
+  - subida de foto desde galeria con validacion de tipo y tamano
+  - edicion de nombre con limite de caracteres
+  - gestion de hashtags multiples con limite de cantidad y longitud
+- Se agregan skeletons para header de marca y para secciones de la pagina de perfil.
+- Build web validado correctamente.
