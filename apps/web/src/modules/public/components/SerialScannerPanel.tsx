@@ -49,23 +49,24 @@ const QUALITY_SAMPLE_WIDTH = 148;
 const QUALITY_SAMPLE_HEIGHT = 44;
 const MIN_CONFIDENCE = 12;
 const SNAP_FLASH_MS = 90;
-const SUPER_TURBO_PREVIEW_MIN_CONFIDENCE = 28;
-const SUPER_TURBO_MIN_EFFECTIVENESS = 60;
-const TURBO_SECONDARY_WINDOW_MIN_MS = 260;
-const TURBO_SECONDARY_WINDOW_MAX_MS = 760;
-const TURBO_SCAN_TOTAL_MIN_MS = 540;
-const TURBO_SCAN_TOTAL_MAX_MS = 1300;
-const MIN_QUALITY_TO_ATTEMPT_OCR = 18;
+const SUPER_TURBO_PREVIEW_MIN_CONFIDENCE = 18;
+const SUPER_TURBO_MIN_EFFECTIVENESS = 46;
+const TURBO_SECONDARY_WINDOW_MIN_MS = 380;
+const TURBO_SECONDARY_WINDOW_MAX_MS = 1350;
+const TURBO_SCAN_TOTAL_MIN_MS = 900;
+const TURBO_SCAN_TOTAL_MAX_MS = 2600;
+const MIN_QUALITY_TO_ATTEMPT_OCR = 14;
 const SCANNER_ENGINE_VERSION = "Turbo v5";
 const PRECAPTURE_WARMUP_FRAMES = 3;
 const PRECAPTURE_FRAME_DELAY_MS = 38;
-const BURST_CAPTURE_ATTEMPTS = 4;
+const BURST_CAPTURE_ATTEMPTS = 3;
 const BURST_CAPTURE_DELAY_MS = 48;
 const PASS_TWO_CAPTURE_ATTEMPTS = 2;
 const OCR_QUALITY_CONFIDENCE_BOOST_FACTOR = 0.12;
 const OCR_FULL_LENGTH_BONUS = 10;
 const OCR_ALMOST_FULL_LENGTH_BONUS = 6;
 const VOTE_ACCEPT_MIN_HITS = 2;
+const FALLBACK_FINAL_PASSES = 2;
 const PRIMARY_ZONE_BY_DENOMINATION: Record<ScannerDenomination, string> = {
   "10": "Zona superior",
   "20": "Zona superior",
@@ -74,15 +75,15 @@ const PRIMARY_ZONE_BY_DENOMINATION: Record<ScannerDenomination, string> = {
 
 function getOcrTargetSize(regionWidth: number, regionHeight: number, mode: "quick" | "deep") {
   if (mode === "quick") {
-    const width = Math.max(132, Math.min(250, Math.round(regionWidth * 0.26)));
+    const width = Math.max(220, Math.min(420, Math.round(regionWidth * 0.56)));
     const ratio = width / Math.max(1, regionWidth);
-    const height = Math.max(42, Math.min(92, Math.round(regionHeight * ratio)));
+    const height = Math.max(62, Math.min(136, Math.round(regionHeight * ratio)));
     return { width, height };
   }
 
-  const width = Math.max(270, Math.min(520, Math.round(regionWidth * 0.5)));
+  const width = Math.max(340, Math.min(680, Math.round(regionWidth * 0.84)));
   const ratio = width / Math.max(1, regionWidth);
-  const height = Math.max(64, Math.min(180, Math.round(regionHeight * ratio)));
+  const height = Math.max(88, Math.min(220, Math.round(regionHeight * ratio)));
   return { width, height };
 }
 
@@ -394,8 +395,8 @@ export function SerialScannerPanel({
           audio: false,
           video: {
             facingMode: { ideal: "environment" },
-            width: { ideal: 640 },
-            height: { ideal: 360 }
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
           }
         });
 
@@ -542,14 +543,14 @@ export function SerialScannerPanel({
       const qualityAcceptFloor = Math.max(42, adaptiveThresholds.qualityAcceptFloor - 16);
       const secondaryWindowMs = Math.min(
         TURBO_SECONDARY_WINDOW_MAX_MS,
-        Math.max(TURBO_SECONDARY_WINDOW_MIN_MS, deviceProfile.baseDelayMs + deviceProfile.readHitDelayMs + 240)
+        Math.max(TURBO_SECONDARY_WINDOW_MIN_MS, deviceProfile.baseDelayMs + deviceProfile.readHitDelayMs + 540)
       );
       const maxScanMs = Math.min(
         TURBO_SCAN_TOTAL_MAX_MS,
-        Math.max(TURBO_SCAN_TOTAL_MIN_MS, deviceProfile.baseDelayMs + deviceProfile.maxOcrMs - 80)
+        Math.max(TURBO_SCAN_TOTAL_MIN_MS, deviceProfile.baseDelayMs + deviceProfile.maxOcrMs + 880)
       );
-      const quickOcrTimeoutMs = Math.min(460, Math.max(220, deviceProfile.maxOcrMs - 180));
-      const deepOcrTimeoutMs = Math.min(620, Math.max(320, deviceProfile.maxOcrMs - 30));
+      const quickOcrTimeoutMs = clamp(deviceProfile.maxOcrMs + 140, 560, 1050);
+      const deepOcrTimeoutMs = clamp(deviceProfile.maxOcrMs + 360, 900, 1550);
       const horizontalOffsets = [0, -0.018, 0.018, -0.032, 0.032];
       const voteMap = new Map<string, CandidateVote>();
 
@@ -754,6 +755,31 @@ export function SerialScannerPanel({
         acceptedOverall = await runPass(2, "deep", PASS_TWO_CAPTURE_ATTEMPTS);
       }
 
+      if (!acceptedOverall && performance.now() - scanStartedAt < maxScanMs) {
+        setStatusText("Super turbo: rescate final...");
+        const fallbackRegion = {
+          left: Math.round(frameCanvas.width * 0.05),
+          top: Math.round(frameCanvas.height * 0.28),
+          width: Math.round(frameCanvas.width * 0.9),
+          height: Math.round(frameCanvas.height * 0.3),
+          label: "Zona completa",
+          priority: 0.94
+        };
+
+        for (let fallbackIndex = 0; fallbackIndex < FALLBACK_FINAL_PASSES; fallbackIndex += 1) {
+          frameContext.drawImage(video, 0, 0, frameCanvas.width, frameCanvas.height);
+          const rescued = await tryRegionRead(fallbackRegion, 2, fallbackIndex, "deep", 2);
+          if (rescued) {
+            acceptedOverall = true;
+            break;
+          }
+
+          if (fallbackIndex < FALLBACK_FINAL_PASSES - 1) {
+            await delay(BURST_CAPTURE_DELAY_MS + 16);
+          }
+        }
+      }
+
       const votedCandidate = chooseBestCandidateFromVotes(voteMap);
       if (
         votedCandidate &&
@@ -788,8 +814,12 @@ export function SerialScannerPanel({
           acceptedVotes >= VOTE_ACCEPT_MIN_HITS ||
           acceptedConfidence >= SUPER_TURBO_PREVIEW_MIN_CONFIDENCE ||
           acceptedEffectiveness >= SUPER_TURBO_MIN_EFFECTIVENESS);
+      const hasSoftAcceptedCandidate =
+        acceptedSerial.length >= digitBounds.minDigits &&
+        (acceptedConfidence >= MIN_CONFIDENCE + 2 || acceptedQuality >= 38 || acceptedVotes >= 1);
+      const shouldEmitCandidate = hasAcceptedCandidate || hasSoftAcceptedCandidate;
 
-      if (hasAcceptedCandidate) {
+      if (shouldEmitCandidate) {
         firstPassHitForMetrics = acceptedInPassOne;
         setLastConfidence(acceptedConfidence);
         setQualityScore(acceptedQuality);
