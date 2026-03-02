@@ -759,6 +759,12 @@ body {
   border-radius: 999px;
 }
 
+.scanner-launch-anchor {
+  display: grid;
+  gap: 0.75rem;
+  scroll-margin-top: 0.8rem;
+}
+
 .scan-note {
   margin: 0.1rem 0 0;
   font-size: 0.9rem;
@@ -984,6 +990,11 @@ body {
   cursor: pointer;
 }
 
+.scanner-secondary:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
 .scanner-secondary--ghost {
   display: inline-flex;
   align-items: center;
@@ -996,6 +1007,16 @@ body {
   border-color: var(--denom-accent, #2a9d8f);
   background: var(--denom-accent-soft, #d8f0eb);
   color: var(--denom-accent-ink, #1f544d);
+}
+
+.scanner-secondary--retry {
+  border-color: #d8b58f;
+  background: #fff4ea;
+  color: #8a4e1c;
+}
+
+.scanner-secondary--alert {
+  animation: scanner-button-pulse 0.95s ease-in-out infinite;
 }
 
 .scanner-scan-primary {
@@ -1013,8 +1034,23 @@ body {
   box-shadow: 0 8px 16px var(--denom-accent-shadow, rgba(42, 157, 143, 0.28));
 }
 
+.scanner-scan-primary--scanning {
+  background: linear-gradient(90deg, #2b8dbc 0%, #2a9d8f 100%);
+  animation: scanner-button-pulse 1s ease-in-out infinite;
+}
+
+.scanner-scan-primary--retry {
+  background: linear-gradient(90deg, #d78a32 0%, #c16433 100%);
+  box-shadow: 0 8px 16px rgba(193, 100, 51, 0.25);
+}
+
 .scanner-scan-primary:disabled {
   opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.scanner-close:disabled {
+  opacity: 0.52;
   cursor: not-allowed;
 }
 
@@ -2129,6 +2165,19 @@ body {
   }
 }
 
+@keyframes scanner-button-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 8px 16px rgba(38, 70, 83, 0.22);
+  }
+
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 10px 18px rgba(38, 70, 83, 0.3);
+  }
+}
+
 @keyframes help-panel-in {
   0% {
     opacity: 0;
@@ -2274,6 +2323,20 @@ body {
   background: #356578;
   border-color: #4f7e8f;
   color: #ffffff;
+}
+
+.theme-dark .scanner-scan-primary--scanning {
+  background: linear-gradient(90deg, #2f7ea3 0%, #2a9d8f 100%);
+}
+
+.theme-dark .scanner-scan-primary--retry {
+  background: linear-gradient(90deg, #b87735 0%, #9d5a34 100%);
+}
+
+.theme-dark .scanner-secondary--retry {
+  background: #5f4a37;
+  border-color: #85674f;
+  color: #ffe8d0;
 }
 
 .theme-dark .settings-toggle-button {

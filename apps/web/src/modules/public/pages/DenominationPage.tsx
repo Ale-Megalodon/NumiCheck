@@ -77,6 +77,7 @@ export function DenominationPage() {
   const [formError, setFormError] = useState("");
   const [modalOutcome, setModalOutcome] = useState<ModalOutcome | null>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const scannerAnchorRef = useRef<HTMLDivElement | null>(null);
 
   const normalizedSeries = useMemo(() => seriesLetter.toUpperCase().slice(0, 1), [seriesLetter]);
   const seriesWarning =
@@ -104,6 +105,21 @@ export function DenominationPage() {
 
     return () => window.clearTimeout(timer);
   }, [loading]);
+
+  useEffect(() => {
+    if (!showScanner || loading) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      scannerAnchorRef.current?.scrollIntoView({
+        behavior: "auto",
+        block: "start"
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [loading, showScanner]);
 
   const resolveSerial = (
     digits: string,
@@ -380,6 +396,26 @@ export function DenominationPage() {
             <>
               <h1 className="denomination-kicker">{denominationTitle}</h1>
 
+              <div ref={scannerAnchorRef} className="scanner-launch-anchor">
+                {showScanner ? (
+                  <SerialScannerPanel
+                    denomination={denominationValue}
+                    denominationLabel={selected.label}
+                    digitBounds={digitBounds}
+                    onDetected={(result) => {
+                      setShowScanner(false);
+                      setScanPreview({
+                        serial: result.serialDigits,
+                        confidence: result.confidence,
+                        quality: result.quality,
+                        source: "scan_camera"
+                      });
+                    }}
+                    onClose={() => setShowScanner(false)}
+                  />
+                ) : null}
+              </div>
+
               <section className="denomination-actions">
                 <button type="button" className="denomination-action" onClick={handleScanClick}>
                   <span>Escanea el numero de serie</span>
@@ -403,24 +439,6 @@ export function DenominationPage() {
                   onChange={handleUploadScanFileChange}
                 />
               </section>
-
-              {showScanner ? (
-                <SerialScannerPanel
-                  denomination={denominationValue}
-                  denominationLabel={selected.label}
-                  digitBounds={digitBounds}
-                  onDetected={(result) => {
-                    setShowScanner(false);
-                    setScanPreview({
-                      serial: result.serialDigits,
-                      confidence: result.confidence,
-                      quality: result.quality,
-                      source: "scan_camera"
-                    });
-                  }}
-                  onClose={() => setShowScanner(false)}
-                />
-              ) : null}
 
               {showManualForm ? (
                 <form className="manual-card" onSubmit={handleManualSubmit}>
