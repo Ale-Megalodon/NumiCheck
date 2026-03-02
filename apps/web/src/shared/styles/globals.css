@@ -510,6 +510,228 @@ body {
   margin-inline: auto;
 }
 
+.denomination-screen {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.85rem;
+  width: 100%;
+  max-width: 760px;
+}
+
+.denomination-kicker {
+  margin: 0;
+  color: var(--brand-primary);
+  font-size: clamp(1.4rem, 4vw, 2rem);
+  font-weight: 700;
+}
+
+.denomination-kicker-skeleton {
+  width: min(100%, 160px);
+  height: 38px;
+  border-radius: 12px;
+}
+
+.denomination-actions {
+  display: grid;
+  gap: 0.8rem;
+  width: 100%;
+  max-width: 560px;
+}
+
+.denomination-action {
+  width: 100%;
+  border: 2px solid #0f2028;
+  border-radius: 999px;
+  background: #264653;
+  color: #ffffff;
+  min-height: 72px;
+  padding: 0.8rem 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  font: inherit;
+  font-size: clamp(1rem, 2.2vw, 1.18rem);
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.denomination-action:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(38, 70, 83, 0.18);
+}
+
+.denomination-action-icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.denomination-action-skeleton {
+  width: 100%;
+  max-width: 560px;
+  height: 72px;
+  border-radius: 999px;
+}
+
+.scan-note {
+  margin: 0.1rem 0 0;
+  font-size: 0.9rem;
+  color: #4a6370;
+}
+
+.manual-card {
+  width: 100%;
+  max-width: 620px;
+  background: #ffffff;
+  border: 1px solid #dce6ea;
+  border-radius: 16px;
+  padding: 1rem;
+  display: grid;
+  gap: 0.8rem;
+  box-shadow: 0 10px 20px rgba(38, 70, 83, 0.1);
+}
+
+.manual-card-skeleton {
+  width: 100%;
+  max-width: 620px;
+  height: 190px;
+  border-radius: 16px;
+}
+
+.manual-title {
+  margin: 0;
+  color: var(--brand-primary);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.manual-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px;
+  gap: 0.75rem;
+}
+
+.manual-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.manual-field span {
+  color: var(--brand-primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.manual-field--series {
+  max-width: 110px;
+}
+
+.manual-input {
+  width: 100%;
+  border: 1px solid #bed0d9;
+  border-radius: 10px;
+  min-height: 44px;
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+  font-size: 0.98rem;
+  color: #193643;
+  background: #ffffff;
+}
+
+.manual-input:focus {
+  outline: 2px solid rgba(42, 157, 143, 0.35);
+  outline-offset: 1px;
+}
+
+.manual-warning,
+.manual-error {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.manual-warning {
+  color: #9c5d0f;
+}
+
+.manual-error {
+  color: #a0272a;
+}
+
+.manual-submit {
+  width: 100%;
+  max-width: 220px;
+  border: none;
+  border-radius: 10px;
+  min-height: 44px;
+  padding: 0.65rem 1rem;
+  background: #2a9d8f;
+  color: #ffffff;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.serial-result-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 27, 33, 0.5);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  z-index: 35;
+}
+
+.serial-result-card {
+  width: min(100%, 620px);
+  border-radius: 18px;
+  padding: 1.2rem 1.2rem 1.1rem;
+  position: relative;
+  box-shadow: 0 16px 30px rgba(17, 30, 38, 0.24);
+  border: 1px solid transparent;
+}
+
+.serial-result-card--illegal {
+  background: #ffe7ea;
+  border-color: #f4bac2;
+}
+
+.serial-result-card--legal {
+  background: #dbf3ee;
+  border-color: #9fd8ce;
+}
+
+.serial-result-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(38, 70, 83, 0.2);
+  border-radius: 10px;
+  background: #ffffff;
+  color: #264653;
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.serial-result-title {
+  margin: 0 2.4rem 0.5rem 0;
+  font-size: clamp(1.1rem, 3vw, 1.36rem);
+  color: #213743;
+}
+
+.serial-result-text {
+  margin: 0;
+  color: #2b4653;
+  line-height: 1.5;
+}
+
 .denomination-placeholder {
   min-height: calc(100vh - 120px);
   display: grid;
@@ -780,6 +1002,18 @@ body {
     grid-column: auto;
     justify-self: stretch;
     width: 100%;
+  }
+
+  .manual-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .manual-field--series {
+    max-width: none;
+  }
+
+  .manual-submit {
+    max-width: none;
   }
 }
 

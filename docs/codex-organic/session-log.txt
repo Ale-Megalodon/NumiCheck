@@ -163,3 +163,22 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
 - Segundo toque dentro de la ventana: retrocede una pagina si existe historial; si no, vuelve al inicio (/).
 - El aviso se oculta automaticamente al vencer el tiempo y limpia timers en unmount.
 - Build web validado correctamente.
+[2026-03-02 | Fase C | Personalizacion por billete + verificacion manual]
+- Paginas /billete/10, /billete/20 y /billete/50 redisenadas con header de marca (logo + letras) y etiqueta de denominacion "X bs >".
+- Se agregan dos acciones por pagina:
+  - "Escanea el numero de serie" (placeholder visual, no funcional por ahora).
+  - "Ingrese el numero de serie de forma manual" (funcional).
+- Formulario manual implementado:
+  - Numero de serie: exactamente 9 digitos.
+  - Serie: 1 letra (solo se acepta B; si no, se muestra advertencia).
+  - Boton enviar en color #2A9D8F.
+- Verificacion conectada al motor de rangos existente por denominacion:
+  - /10 consulta tabla 10 Bs.
+  - /20 consulta tabla 20 Bs.
+  - /50 consulta tabla 50 Bs.
+- Resultado mostrado en modal visual:
+  - Rojo suave: "Numero de Serie sospechoso detectado!" si cae en rango inhabilitado.
+  - Verde (#2A9D8F base): "Billete no observado" si no coincide con rangos.
+  - Ambos con boton grande "X" para cerrar.
+- Se agrega registro de consultas por usuario autenticado (totales, legales, ilegales) para panel admin.
+- Build web validado correctamente.

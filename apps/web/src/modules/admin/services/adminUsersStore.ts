@@ -80,3 +80,21 @@ export function deleteAdminUser(uid: string) {
   writeStore(records);
 }
 
+export function registerAdminUserQuery(uid: string, status: "legal" | "illegal") {
+  const records = readStore();
+  const index = records.findIndex((record) => record.uid === uid);
+
+  if (index === -1) {
+    return;
+  }
+
+  const target = records[index];
+  records[index] = {
+    ...target,
+    totalQueries: target.totalQueries + 1,
+    legalQueries: target.legalQueries + (status === "legal" ? 1 : 0),
+    illegalQueries: target.illegalQueries + (status === "illegal" ? 1 : 0)
+  };
+
+  writeStore(records);
+}
