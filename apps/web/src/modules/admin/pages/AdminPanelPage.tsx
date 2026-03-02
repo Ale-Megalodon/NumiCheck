@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { BrandWordmark } from "../../../shared/components/ui/BrandWordmark";
 import { IllegalRangesEditor } from "../components/IllegalRangesEditor";
+import { confirmRangeEdit } from "../utils/rangeSafety";
 import {
   createIllegalRange,
   evaluateSeriesAgainstIllegalRanges,
@@ -71,7 +72,7 @@ export function AdminPanelPage() {
   };
 
   const resetAllRanges = () => {
-    const confirmed = window.confirm("Restaurar los rangos originales de 10, 20 y 50 Bs?");
+    const confirmed = confirmRangeEdit("Restaurar los rangos originales de 10, 20 y 50 Bs");
     if (!confirmed) {
       return;
     }

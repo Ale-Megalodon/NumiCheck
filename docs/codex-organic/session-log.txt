@@ -145,3 +145,21 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
 - Se agrega prueba rapida en panel admin para validar una serie contra la tabla seleccionada.
 - Boton para restaurar rangos base originales.
 - Build web validado correctamente.
+[2026-03-01 | Fase B.1 seguridad rangos]
+- Se agrega confirmacion triple para acciones de edicion de tablas de billetes.
+- Palabra requerida en cada paso: "seguro" (3 veces).
+- Acciones protegidas: Agregar rango, Guardar cambios de rango, Eliminar rango, Restaurar rangos base.
+- No se toca la seccion de usuarios del panel admin.
+- Build web validado correctamente.
+[2026-03-01 | Fase B.2 | Splash solo al entrar + skeletons]
+- Splash de 1.2s ahora se ejecuta solo al entrar a la web (carga inicial), no en navegacion interna por botones.
+- Se agrega skeleton personalizado en menu hamburguesa mientras auth carga.
+- Main menu ahora usa skeleton completo personalizado para header, pregunta y billetes mientras cargan auth/assets.
+- Skeletons tambien aplicados en paginas de denominacion y placeholders internos durante carga.
+- Build web validado correctamente.
+[2026-03-02 | Fase B.3 | Salir con doble toque tipo TikTok]
+- Se implementa accion "Salir" en menu hamburguesa (con y sin sesion).
+- Primer toque: muestra aviso pequeno "Pulsa dos veces para salir" y arma ventana de confirmacion (2.2s).
+- Segundo toque dentro de la ventana: retrocede una pagina si existe historial; si no, vuelve al inicio (/).
+- El aviso se oculta automaticamente al vencer el tiempo y limpia timers en unmount.
+- Build web validado correctamente.
