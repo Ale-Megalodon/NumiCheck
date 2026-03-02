@@ -10,7 +10,7 @@ import {
   type PublicProfile
 } from "../services/publicProfileStore";
 
-const EMOJI_CANDIDATES = Array.from({ length: 10 }, (_, index) => `/img/emojis/Flat_${index + 1}.jpg`);
+const EMOJI_CANDIDATES = Array.from({ length: 10 }, (_, index) => `/img/Flat_${index + 1}.jpg`);
 const MAX_NAME_LENGTH = 32;
 const MAX_TAG_LENGTH = 22;
 const MAX_TAGS = 8;
@@ -285,7 +285,7 @@ export function ProfilePage() {
                   </div>
                 )}
                 {!emojiLoading && emojiOptions.length === 0 ? (
-                  <p className="profile-note">No se encontraron emojis en `img/emojis/`.</p>
+                  <p className="profile-note">No se encontraron emojis en `img/`.</p>
                 ) : null}
               </section>
 

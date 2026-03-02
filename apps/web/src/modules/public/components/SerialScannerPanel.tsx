@@ -40,7 +40,9 @@ const MIN_CONFIDENCE = 30;
 const SNAP_FLASH_MS = 90;
 const TURBO_ACCEPT_CONFIDENCE = 70;
 const TURBO_IMMEDIATE_CONFIDENCE = 74;
-const TURBO_DEEP_RECHECK_CONFIDENCE = 68;
+const SUPER_TURBO_PREVIEW_MIN_CONFIDENCE = 56;
+const SUPER_TURBO_SECONDARY_WINDOW_MS = 760;
+const SUPER_TURBO_MAX_SCAN_MS = 1000;
 const MIN_QUALITY_TO_ATTEMPT_OCR = 32;
 const PRIMARY_ZONE_BY_DENOMINATION: Record<ScannerDenomination, string> = {
   "10": "Zona superior",
@@ -50,9 +52,9 @@ const PRIMARY_ZONE_BY_DENOMINATION: Record<ScannerDenomination, string> = {
 
 function getOcrTargetSize(regionWidth: number, regionHeight: number, mode: "quick" | "deep") {
   if (mode === "quick") {
-    const width = Math.max(180, Math.min(340, Math.round(regionWidth * 0.34)));
+    const width = Math.max(154, Math.min(300, Math.round(regionWidth * 0.3)));
     const ratio = width / Math.max(1, regionWidth);
-    const height = Math.max(52, Math.min(124, Math.round(regionHeight * ratio)));
+    const height = Math.max(48, Math.min(110, Math.round(regionHeight * ratio)));
     return { width, height };
   }
 
@@ -81,12 +83,16 @@ function getCandidateConfidence(candidate: Candidate | null) {
   return candidate ? candidate.confidence : 0;
 }
 
-function getCandidateRegionIndex(candidate: Candidate | null) {
-  return candidate ? candidate.regionIndex : 0;
+function getCandidateQuality(candidate: Candidate | null) {
+  return candidate ? candidate.quality : 0;
 }
 
-function getCandidateScore(candidate: Candidate | null) {
-  return candidate ? candidate.score : Number.NEGATIVE_INFINITY;
+function getCandidateZoneLabel(candidate: Candidate | null) {
+  return candidate ? candidate.zoneLabel : "Zona central";
+}
+
+function getCandidateSerial(candidate: Candidate | null) {
+  return candidate ? candidate.serial : "";
 }
 
 function drawRegionForOcr(
@@ -257,8 +263,8 @@ export function SerialScannerPanel({
           audio: false,
           video: {
             facingMode: { ideal: "environment" },
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
+            width: { ideal: 960 },
+            height: { ideal: 540 }
           }
         });
 
@@ -370,7 +376,7 @@ export function SerialScannerPanel({
 
     setIsScanning(true);
     setScanStatus("reading");
-    setStatusText("Tomando foto y analizando...");
+    setStatusText("Super turbo: capturando y leyendo...");
     setErrorText("");
     setScanFlash(true);
     window.setTimeout(() => setScanFlash(false), SNAP_FLASH_MS);
@@ -384,6 +390,7 @@ export function SerialScannerPanel({
     let ocrCalls = 0;
 
     try {
+      const scanStartedAt = performance.now();
       frameCanvas.width = video.videoWidth;
       frameCanvas.height = video.videoHeight;
       frameContext.drawImage(video, 0, 0, frameCanvas.width, frameCanvas.height);
@@ -396,7 +403,6 @@ export function SerialScannerPanel({
       const quickRegions = getQuickRegionsForDenomination(denomination, regions);
       const quickAcceptConfidence = Math.max(MIN_CONFIDENCE, TURBO_ACCEPT_CONFIDENCE);
       const immediateAcceptConfidence = Math.max(quickAcceptConfidence, TURBO_IMMEDIATE_CONFIDENCE);
-      const deepAcceptConfidence = Math.max(MIN_CONFIDENCE, TURBO_DEEP_RECHECK_CONFIDENCE);
       const tryQuickRegion = async (region: (typeof quickRegions)[number], regionIndex: number) => {
         setZoneLabel(region.label);
         observedZone = region.label;
@@ -477,66 +483,41 @@ export function SerialScannerPanel({
       }
 
       const bestConfidenceAfterPrimary = getCandidateConfidence(best);
-      if (!acceptedInPrimary && secondaryRegion && bestConfidenceAfterPrimary < quickAcceptConfidence) {
+      const elapsedAfterPrimary = performance.now() - scanStartedAt;
+      if (
+        !acceptedInPrimary &&
+        secondaryRegion &&
+        bestConfidenceAfterPrimary < quickAcceptConfidence &&
+        elapsedAfterPrimary < SUPER_TURBO_SECONDARY_WINDOW_MS
+      ) {
         await tryQuickRegion(secondaryRegion, 1);
       }
 
-      const bestConfidenceAfterQuick = getCandidateConfidence(best);
-      if (!best || bestConfidenceAfterQuick < deepAcceptConfidence) {
-        const bestRegionIndex = getCandidateRegionIndex(best);
-        const fallbackRegion = quickRegions[bestRegionIndex] ?? quickRegions[0] ?? regions[0];
-
-        if (fallbackRegion) {
-          setZoneLabel(fallbackRegion.label);
-          observedZone = fallbackRegion.label;
-          drawRegionForOcr(frameCanvas, canvas, fallbackRegion, "deep");
-
-          const deepStart = performance.now();
-          const deepResult = await worker.recognize(canvas);
-          const deepElapsed = Math.round(performance.now() - deepStart);
-          totalOcrMs += deepElapsed;
-          ocrCalls += 1;
-
-          const deepText = deepResult.data?.text ?? "";
-          const deepConfidence = Math.round(deepResult.data?.confidence ?? 0);
-          const deepCandidate = extractSerialDigitsFromOcr(deepText, digitBounds);
-
-          observedConfidence = Math.max(observedConfidence, deepConfidence);
-
-          if (deepCandidate && deepConfidence >= MIN_CONFIDENCE) {
-            const deepScore = deepConfidence * 0.64 + Math.max(observedQuality, qualityScore) * 0.24 + fallbackRegion.priority * 12;
-            const deepPick: Candidate = {
-              serial: deepCandidate,
-              confidence: deepConfidence,
-              quality: Math.max(observedQuality, qualityScore),
-              score: deepScore,
-              zoneLabel: fallbackRegion.label,
-              regionIndex: 0
-            };
-
-            const bestScore = getCandidateScore(best);
-            if (deepPick.score >= bestScore) {
-              best = deepPick;
-            }
-          } else {
-            bestHint = `No legible en ${fallbackRegion.label}.`;
-          }
-        }
+      const elapsedTotal = performance.now() - scanStartedAt;
+      if (elapsedTotal > SUPER_TURBO_MAX_SCAN_MS && !best) {
+        bestHint = "No se pudo leer en modo turbo. Reintenta o usa subir imagen.";
       }
 
-      if (best && best.confidence >= quickAcceptConfidence) {
-        setLastConfidence(best.confidence);
-        setQualityScore(best.quality);
-        setZoneLabel(best.zoneLabel);
+      const acceptedConfidence = getCandidateConfidence(best);
+      const acceptedQuality = getCandidateQuality(best);
+      const acceptedZone = getCandidateZoneLabel(best);
+      const acceptedSerial = getCandidateSerial(best);
+      const hasAcceptedCandidate =
+        acceptedSerial.length >= digitBounds.minDigits && acceptedConfidence >= SUPER_TURBO_PREVIEW_MIN_CONFIDENCE;
+
+      if (hasAcceptedCandidate) {
+        setLastConfidence(acceptedConfidence);
+        setQualityScore(acceptedQuality);
+        setZoneLabel(acceptedZone);
         setScanStatus("ready");
-        setStatusText(`Tu numero de serie es "${best.serial}" - B`);
+        setStatusText(`Turbo listo: "${acceptedSerial}" - B (${acceptedConfidence}%)`);
 
         recordScanSample(denomination, {
           ocrMs: ocrCalls > 0 ? Math.round(totalOcrMs / ocrCalls) : Math.min(deviceProfile.maxOcrMs, 420),
-          quality: best.quality,
-          confidence: best.confidence,
+          quality: acceptedQuality,
+          confidence: acceptedConfidence,
           success: true,
-          zoneLabel: best.zoneLabel
+          zoneLabel: acceptedZone
         });
 
         if (typeof navigator.vibrate === "function") {
@@ -544,20 +525,21 @@ export function SerialScannerPanel({
         }
 
         onDetected({
-          serialDigits: best.serial,
-          confidence: best.confidence,
-          quality: best.quality
+          serialDigits: acceptedSerial,
+          confidence: acceptedConfidence,
+          quality: acceptedQuality
         });
       } else {
-        const finalConfidence = best ? Math.max(observedConfidence, best.confidence) : observedConfidence;
-        const finalQuality = best ? Math.max(observedQuality, best.quality) : observedQuality;
-        const finalZone = best?.zoneLabel ?? observedZone;
+        const hasCandidate = acceptedSerial.length > 0;
+        const finalConfidence = hasCandidate ? Math.max(observedConfidence, acceptedConfidence) : observedConfidence;
+        const finalQuality = hasCandidate ? Math.max(observedQuality, acceptedQuality) : observedQuality;
+        const finalZone = hasCandidate ? acceptedZone : observedZone;
 
         setLastConfidence(finalConfidence);
         setScanStatus("ready");
         setStatusText(
-          best
-            ? `Lectura inestable (${best.confidence}%). Reintenta para confirmar.`
+          hasCandidate
+            ? `Lectura inestable (${acceptedConfidence}%). Reintenta para confirmar.`
             : bestHint
         );
 

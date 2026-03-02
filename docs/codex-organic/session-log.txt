@@ -336,3 +336,35 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
   - gestion de hashtags multiples con limite de cantidad y longitud
 - Se agregan skeletons para header de marca y para secciones de la pagina de perfil.
 - Build web validado correctamente.
+[2026-03-02 | SUPER turbo + escaneo por imagen]
+- Escaner de camara optimizado para respuesta ultra rapida:
+  - modo quick-only (se elimina deep pass lento)
+  - ROI OCR mas pequeno para bajar latencia
+  - resolucion ideal de camara reducida para acelerar captura
+  - ventana de tiempo turbo para segunda zona y feedback rapido
+- Preview de lectura ahora prioriza velocidad:
+  - acepta candidato en umbral turbo para mostrar resultado inmediato
+  - mantiene mensaje de lectura inestable cuando confianza es baja
+- Modal de lectura actualizado segun flujo solicitado:
+  - "Tu numero es X - B"
+  - "Porcentaje veridico estimado"
+  - botones "Escanear de nuevo?" y "Verificar numero de serie"
+- Se agrega opcion "Subir imagen y escanear" en pagina de billete:
+  - valida tipo y tamano de archivo
+  - OCR sobre regiones prioritarias + fallback completo
+  - resultado alimenta el mismo flujo de preview y verificacion final rojo/verde
+- Build web validado correctamente.
+[2026-03-02 | Historial usuario + ruta nueva de emojis]
+- Panel de emojis actualizado a nueva ruta: /img/Flat_1..Flat_10.
+- Se ajusta mensaje de fallback de emojis a carpeta /img.
+- Se crea store de historial de verificaciones por usuario:
+  - guarda denominacion, serie, estado legal/ilegal, metodo (manual/camara/imagen), confianza/calidad y fecha.
+  - permite obtener y vaciar historial.
+- Integracion en flujo de verificacion:
+  - al verificar numero de serie (manual o desde preview de escaneo) se registra en historial.
+- Nueva pagina /historial con diseno profesional:
+  - resumen total/legales/ilegales
+  - lista cronologica de verificaciones
+  - boton "Vaciar historial"
+  - skeletons durante carga
+- Build web validado correctamente.

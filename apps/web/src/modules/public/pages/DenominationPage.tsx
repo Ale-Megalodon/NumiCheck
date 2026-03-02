@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type ChangeEvent, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { useAuth } from "../../../app/providers/AuthProvider";
 import { registerAdminUserQuery } from "../../admin/services/adminUsersStore";
@@ -11,7 +11,13 @@ import { HamburgerMenu } from "../components/HamburgerMenu";
 import { PublicBrand } from "../components/PublicBrand";
 import { SerialScannerPanel } from "../components/SerialScannerPanel";
 import { BANKNOTE_OPTIONS } from "../constants/banknotes";
-import { warmupSharedOcrWorker } from "../services/ocrWorkerStore";
+import { getSharedOcrWorker, warmupSharedOcrWorker } from "../services/ocrWorkerStore";
+import {
+  appendVerificationHistory,
+  type VerificationSource
+} from "../services/publicVerificationHistoryStore";
+import { buildScanRegions, type ScannerDenomination } from "../utils/scanRegionProfiles";
+import { extractSerialDigitsFromOcr } from "../utils/serialOcr";
 
 type ModalOutcome = {
   status: "illegal" | "legal";
@@ -22,7 +28,16 @@ type ScanPreview = {
   serial: string;
   confidence: number;
   quality: number;
+  source: VerificationSource;
 };
+
+type OcrWorker = {
+  recognize: (image: HTMLCanvasElement) => Promise<{ data?: { text?: string; confidence?: number } }>;
+};
+
+const MAX_UPLOAD_IMAGE_BYTES = 6 * 1024 * 1024;
+const MAX_UPLOAD_SIDE = 1280;
+const MIN_UPLOAD_PREVIEW_CONFIDENCE = 46;
 
 function CameraMiniIcon() {
   return (
@@ -52,10 +67,12 @@ export function DenominationPage() {
   const [showManualForm, setShowManualForm] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [scanPreview, setScanPreview] = useState<ScanPreview | null>(null);
+  const [isUploadingScan, setIsUploadingScan] = useState(false);
   const [serialDigits, setSerialDigits] = useState("");
   const [seriesLetter, setSeriesLetter] = useState("B");
   const [formError, setFormError] = useState("");
   const [modalOutcome, setModalOutcome] = useState<ModalOutcome | null>(null);
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
   const normalizedSeries = useMemo(() => seriesLetter.toUpperCase().slice(0, 1), [seriesLetter]);
   const seriesWarning =
@@ -84,7 +101,10 @@ export function DenominationPage() {
     return () => window.clearTimeout(timer);
   }, [loading]);
 
-  const resolveSerial = (digits: string) => {
+  const resolveSerial = (
+    digits: string,
+    metadata: { source: VerificationSource; confidence?: number | null; quality?: number | null }
+  ) => {
     const serialWithSeries = `${digits}B`;
     const evaluation = evaluateSeriesAgainstIllegalRanges(denominationValue, serialWithSeries);
 
@@ -102,6 +122,15 @@ export function DenominationPage() {
     if (user) {
       registerAdminUserQuery(user.uid, finalStatus);
     }
+
+    appendVerificationHistory(user?.uid, {
+      denomination: denominationValue,
+      serial: digits,
+      status: finalStatus,
+      source: metadata.source,
+      confidence: metadata.confidence ?? null,
+      quality: metadata.quality ?? null
+    });
   };
 
   const handleScanClick = () => {
@@ -109,6 +138,136 @@ export function DenominationPage() {
     setShowManualForm(false);
     setScanPreview(null);
     setShowScanner(true);
+  };
+
+  const handleUploadScanClick = () => {
+    if (isUploadingScan) {
+      return;
+    }
+
+    uploadInputRef.current?.click();
+  };
+
+  const handleUploadScanFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setFormError("Sube un archivo de imagen valido para escanear.");
+      return;
+    }
+
+    if (file.size > MAX_UPLOAD_IMAGE_BYTES) {
+      setFormError("La imagen pesa demasiado. Usa una de maximo 6 MB.");
+      return;
+    }
+
+    setIsUploadingScan(true);
+    setFormError("");
+    setShowManualForm(false);
+    setShowScanner(false);
+    setScanPreview(null);
+
+    const imageUrl = window.URL.createObjectURL(file);
+    const image = new Image();
+
+    const loadResult = await new Promise<{ ok: true } | { ok: false }>((resolve) => {
+      image.onload = () => resolve({ ok: true });
+      image.onerror = () => resolve({ ok: false });
+      image.src = imageUrl;
+    });
+
+    if (!loadResult.ok || image.naturalWidth <= 0 || image.naturalHeight <= 0) {
+      window.URL.revokeObjectURL(imageUrl);
+      setIsUploadingScan(false);
+      setFormError("No pudimos abrir la imagen. Intenta con otra.");
+      return;
+    }
+
+    try {
+      const worker = (await getSharedOcrWorker()) as OcrWorker;
+      const frameCanvas = document.createElement("canvas");
+      const frameContext = frameCanvas.getContext("2d", { willReadFrequently: true });
+      const ocrCanvas = document.createElement("canvas");
+      const ocrContext = ocrCanvas.getContext("2d", { willReadFrequently: true });
+
+      if (!frameContext || !ocrContext) {
+        throw new Error("No se pudo preparar el analisis de imagen.");
+      }
+
+      const scale = Math.min(1, MAX_UPLOAD_SIDE / Math.max(image.naturalWidth, image.naturalHeight));
+      const targetWidth = Math.max(220, Math.round(image.naturalWidth * scale));
+      const targetHeight = Math.max(140, Math.round(image.naturalHeight * scale));
+      frameCanvas.width = targetWidth;
+      frameCanvas.height = targetHeight;
+      frameContext.drawImage(image, 0, 0, targetWidth, targetHeight);
+
+      const regions = buildScanRegions(denominationValue as ScannerDenomination, targetWidth, targetHeight).sort(
+        (a, b) => b.priority - a.priority
+      );
+
+      let bestCandidate: string | null = null;
+      let bestConfidence = 0;
+      let bestQuality = 0;
+
+      const scanRegion = async (left: number, top: number, width: number, height: number) => {
+        const targetOcrWidth = Math.max(190, Math.min(360, Math.round(width * 0.36)));
+        const ratio = targetOcrWidth / Math.max(1, width);
+        const targetOcrHeight = Math.max(52, Math.min(120, Math.round(height * ratio)));
+        ocrCanvas.width = targetOcrWidth;
+        ocrCanvas.height = targetOcrHeight;
+        ocrContext.imageSmoothingEnabled = false;
+        ocrContext.filter = "grayscale(1) contrast(1.7) brightness(1.06)";
+        ocrContext.drawImage(frameCanvas, left, top, width, height, 0, 0, targetOcrWidth, targetOcrHeight);
+        ocrContext.filter = "none";
+
+        const result = await worker.recognize(ocrCanvas);
+        const confidence = Math.round(result.data?.confidence ?? 0);
+        const text = result.data?.text ?? "";
+        const candidate = extractSerialDigitsFromOcr(text, digitBounds);
+        if (!candidate) {
+          return;
+        }
+
+        if (confidence >= bestConfidence) {
+          bestCandidate = candidate;
+          bestConfidence = confidence;
+          bestQuality = Math.max(48, Math.min(100, confidence + 6));
+        }
+      };
+
+      for (const region of regions.slice(0, 3)) {
+        await scanRegion(region.left, region.top, region.width, region.height);
+        if (bestConfidence >= 66) {
+          break;
+        }
+      }
+
+      if (!bestCandidate) {
+        await scanRegion(0, 0, targetWidth, targetHeight);
+      }
+
+      if (!bestCandidate || bestConfidence < MIN_UPLOAD_PREVIEW_CONFIDENCE) {
+        setFormError("No se pudo detectar un numero claro. Prueba otra imagen o reescanea.");
+        return;
+      }
+
+      setScanPreview({
+        serial: bestCandidate,
+        confidence: bestConfidence,
+        quality: bestQuality,
+        source: "scan_upload"
+      });
+    } catch {
+      setFormError("Fallo al escanear imagen. Intenta nuevamente.");
+    } finally {
+      window.URL.revokeObjectURL(imageUrl);
+      setIsUploadingScan(false);
+    }
   };
 
   const handleRescanFromPreview = () => {
@@ -122,7 +281,11 @@ export function DenominationPage() {
     }
 
     setScanPreview(null);
-    resolveSerial(scanPreview.serial);
+    resolveSerial(scanPreview.serial, {
+      source: scanPreview.source,
+      confidence: scanPreview.confidence,
+      quality: scanPreview.quality
+    });
   };
 
   const scanEstimatedSuccess = useMemo(() => {
@@ -131,7 +294,7 @@ export function DenominationPage() {
     }
 
     const weighted = Math.round(scanPreview.confidence * 0.78 + scanPreview.quality * 0.22);
-    return Math.max(55, Math.min(99, weighted));
+    return Math.max(70, Math.min(99, weighted));
   }, [scanPreview]);
 
   const handleManualSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -150,7 +313,11 @@ export function DenominationPage() {
       return;
     }
 
-    resolveSerial(serialDigits);
+    resolveSerial(serialDigits, {
+      source: "manual",
+      confidence: null,
+      quality: null
+    });
   };
 
   return (
@@ -167,6 +334,7 @@ export function DenominationPage() {
               <div className="denomination-kicker-skeleton skeleton" aria-hidden="true" />
               <div className="denomination-action-skeleton skeleton" aria-hidden="true" />
               <div className="denomination-action-skeleton skeleton" aria-hidden="true" />
+              <div className="denomination-action-skeleton skeleton" aria-hidden="true" />
               <div className="manual-card-skeleton skeleton" aria-hidden="true" />
             </>
           ) : (
@@ -178,6 +346,9 @@ export function DenominationPage() {
                   <span>Escanea el numero de serie</span>
                   <CameraMiniIcon />
                 </button>
+                <button type="button" className="denomination-action" onClick={handleUploadScanClick} disabled={isUploadingScan}>
+                  {isUploadingScan ? "Escaneando imagen..." : "Subir imagen y escanear"}
+                </button>
                 <button
                   type="button"
                   className="denomination-action"
@@ -185,6 +356,13 @@ export function DenominationPage() {
                 >
                   Ingrese el numero de serie de forma manual
                 </button>
+                <input
+                  ref={uploadInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="scanner-canvas-hidden"
+                  onChange={handleUploadScanFileChange}
+                />
               </section>
 
               {showScanner ? (
@@ -197,7 +375,8 @@ export function DenominationPage() {
                     setScanPreview({
                       serial: result.serialDigits,
                       confidence: result.confidence,
-                      quality: result.quality
+                      quality: result.quality,
+                      source: "scan_camera"
                     });
                   }}
                   onClose={() => setShowScanner(false)}
@@ -286,15 +465,15 @@ export function DenominationPage() {
             <button type="button" className="serial-result-close" onClick={() => setScanPreview(null)}>
               X
             </button>
-            <h3 className="serial-result-title">Lectura completada</h3>
-            <p className="serial-result-text">{`Tu numero de serie es "${scanPreview.serial}" - B`}</p>
-            <p className="serial-result-text serial-result-text--subtle">{`Probabilidad estimada de acierto: ${scanEstimatedSuccess}%`}</p>
+            <h3 className="serial-result-title">Lectura super turbo completada</h3>
+            <p className="serial-result-text">{`Tu numero es "${scanPreview.serial}" - B`}</p>
+            <p className="serial-result-text serial-result-text--subtle">{`Porcentaje veridico estimado: ${scanEstimatedSuccess}%`}</p>
             <div className="serial-result-actions">
               <button type="button" className="serial-result-action serial-result-action--ghost" onClick={handleRescanFromPreview}>
-                Escanear de nuevo
+                Escanear de nuevo?
               </button>
               <button type="button" className="serial-result-action serial-result-action--verify" onClick={handleVerifyScannedNow}>
-                Verificar ya!
+                Verificar numero de serie
               </button>
             </div>
           </article>

@@ -3,6 +3,7 @@ import { AdminPanelPage } from "../../modules/admin/pages/AdminPanelPage";
 import { LoginPage } from "../../modules/auth/pages/LoginPage";
 import { DenominationPage } from "../../modules/public/pages/DenominationPage";
 import { FeaturePlaceholderPage } from "../../modules/public/pages/FeaturePlaceholderPage";
+import { HistoryPage } from "../../modules/public/pages/HistoryPage";
 import { MainMenuPage } from "../../modules/public/pages/MainMenuPage";
 import { ProfilePage } from "../../modules/public/pages/ProfilePage";
 
@@ -14,7 +15,7 @@ export function AppRouter() {
       <Route path="/billete/:denomination" element={<DenominationPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/perfil" element={<ProfilePage />} />
-      <Route path="/historial" element={<FeaturePlaceholderPage title="Historial" />} />
+      <Route path="/historial" element={<HistoryPage />} />
       <Route path="/configuracion" element={<FeaturePlaceholderPage title="Configuracion" />} />
       <Route path="/ayuda" element={<FeaturePlaceholderPage title="Ayuda" />} />
       <Route path="/app" element={<Navigate to="/" replace />} />
