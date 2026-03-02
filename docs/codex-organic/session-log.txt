@@ -425,3 +425,14 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
   - despues queda cacheado en estado local para aperturas siguientes
 - Estilos nuevos para modal de emojis y soporte modo oscuro.
 - Build web validado correctamente.
+[2026-03-02 | Scanner visible in tests + upload quality gate]
+- Se ajusta scanner de camara para que el cambio sea visible en pruebas:
+  - umbral turbo de confianza reducido para aceptar lectura mas rapido
+  - timeout de OCR por intento para cortar lecturas lentas y mantener sensacion de 1 segundo
+  - criterio adicional por efectividad turbo (>=70) para aceptar preview
+- Se ajusta escaneo por imagen subida:
+  - calidad real calculada con analyzeFrameQuality por region
+  - ranking por score combinado confianza+calidad
+  - preview solo si efectividad estimada >=70
+  - si no alcanza: "Imagen borrosa. Intenta escanearlo de forma manual."
+- Build web validado correctamente.

@@ -44,12 +44,14 @@ const QUALITY_SAMPLE_WIDTH = 148;
 const QUALITY_SAMPLE_HEIGHT = 44;
 const MIN_CONFIDENCE = 30;
 const SNAP_FLASH_MS = 90;
-const SUPER_TURBO_PREVIEW_MIN_CONFIDENCE = 48;
+const SUPER_TURBO_PREVIEW_MIN_CONFIDENCE = 40;
+const SUPER_TURBO_MIN_EFFECTIVENESS = 70;
 const TURBO_SECONDARY_WINDOW_MIN_MS = 380;
 const TURBO_SECONDARY_WINDOW_MAX_MS = 1100;
 const TURBO_SCAN_TOTAL_MIN_MS = 620;
 const TURBO_SCAN_TOTAL_MAX_MS = 1700;
 const MIN_QUALITY_TO_ATTEMPT_OCR = 18;
+const SCANNER_ENGINE_VERSION = "Turbo v3";
 const PRIMARY_ZONE_BY_DENOMINATION: Record<ScannerDenomination, string> = {
   "10": "Zona superior",
   "20": "Zona superior",
@@ -145,6 +147,18 @@ function drawRegionForOcr(
 
     context.putImageData(image, 0, 0);
   }
+}
+
+async function recognizeWithTimeout(
+  worker: OcrWorker,
+  image: HTMLCanvasElement,
+  timeoutMs: number
+): Promise<{ data?: { text?: string; confidence?: number } } | null> {
+  const timeoutPromise = new Promise<null>((resolve) => {
+    window.setTimeout(() => resolve(null), timeoutMs);
+  });
+
+  return Promise.race([worker.recognize(image), timeoutPromise]);
 }
 
 export function SerialScannerPanel({
@@ -437,6 +451,7 @@ export function SerialScannerPanel({
         TURBO_SCAN_TOTAL_MAX_MS,
         Math.max(TURBO_SCAN_TOTAL_MIN_MS, deviceProfile.baseDelayMs + deviceProfile.maxOcrMs + 120)
       );
+      const ocrTimeoutMs = Math.min(980, Math.max(540, deviceProfile.maxOcrMs + 40));
       const tryQuickRegion = async (region: (typeof quickRegions)[number], regionIndex: number) => {
         setZoneLabel(region.label);
         observedZone = region.label;
@@ -470,10 +485,14 @@ export function SerialScannerPanel({
         drawRegionForOcr(frameCanvas, canvas, region, "quick");
 
         const ocrStart = performance.now();
-        const result = await worker.recognize(canvas);
+        const result = await recognizeWithTimeout(worker, canvas, ocrTimeoutMs);
         const ocrElapsed = Math.round(performance.now() - ocrStart);
         totalOcrMs += ocrElapsed;
         ocrCalls += 1;
+        if (!result) {
+          bestHint = `${region.label}: lectura lenta, vuelve a intentar.`;
+          return false;
+        }
 
         const text = result.data?.text ?? "";
         const confidence = Math.round(result.data?.confidence ?? 0);
@@ -539,7 +558,8 @@ export function SerialScannerPanel({
       const acceptedEffectiveness = Math.round(acceptedConfidence * 0.78 + acceptedQuality * 0.22);
       const hasAcceptedCandidate =
         acceptedSerial.length >= digitBounds.minDigits &&
-        (acceptedConfidence >= SUPER_TURBO_PREVIEW_MIN_CONFIDENCE || acceptedEffectiveness >= 70);
+        (acceptedConfidence >= SUPER_TURBO_PREVIEW_MIN_CONFIDENCE ||
+          acceptedEffectiveness >= SUPER_TURBO_MIN_EFFECTIVENESS);
 
       if (hasAcceptedCandidate) {
         setLastConfidence(acceptedConfidence);
@@ -603,6 +623,7 @@ export function SerialScannerPanel({
           <p>Detecta automaticamente serie B para {denominationLabel}</p>
         </div>
         <div className="scanner-header-actions">
+          <span className="scanner-version-badge">{SCANNER_ENGINE_VERSION}</span>
           <span className="scanner-tier-badge">
             {deviceProfile.tier.toUpperCase()} / {hasAccountPatch ? "CUENTA" : profileResolution.source.toUpperCase()}
           </span>

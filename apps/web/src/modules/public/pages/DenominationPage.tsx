@@ -17,6 +17,7 @@ import {
   appendVerificationHistory,
   type VerificationSource
 } from "../services/publicVerificationHistoryStore";
+import { analyzeFrameQuality } from "../utils/frameQuality";
 import { buildScanRegions, type ScannerDenomination } from "../utils/scanRegionProfiles";
 import { extractSerialDigitsFromOcr } from "../utils/serialOcr";
 
@@ -39,6 +40,8 @@ type OcrWorker = {
 const MAX_UPLOAD_IMAGE_BYTES = 6 * 1024 * 1024;
 const MAX_UPLOAD_SIDE = 1280;
 const MIN_UPLOAD_PREVIEW_CONFIDENCE = 70;
+const UPLOAD_QUALITY_SAMPLE_WIDTH = 180;
+const UPLOAD_QUALITY_SAMPLE_HEIGHT = 56;
 
 function CameraMiniIcon() {
   return (
@@ -214,8 +217,36 @@ export function DenominationPage() {
       let bestCandidate: string | null = null;
       let bestConfidence = 0;
       let bestQuality = 0;
+      let bestScore = 0;
 
       const scanRegion = async (left: number, top: number, width: number, height: number) => {
+        const qualityCanvas = document.createElement("canvas");
+        const qualityContext = qualityCanvas.getContext("2d", { willReadFrequently: true });
+        if (!qualityContext) {
+          return;
+        }
+
+        qualityCanvas.width = UPLOAD_QUALITY_SAMPLE_WIDTH;
+        qualityCanvas.height = UPLOAD_QUALITY_SAMPLE_HEIGHT;
+        qualityContext.drawImage(
+          frameCanvas,
+          left,
+          top,
+          width,
+          height,
+          0,
+          0,
+          UPLOAD_QUALITY_SAMPLE_WIDTH,
+          UPLOAD_QUALITY_SAMPLE_HEIGHT
+        );
+        const qualityPixels = qualityContext.getImageData(0, 0, UPLOAD_QUALITY_SAMPLE_WIDTH, UPLOAD_QUALITY_SAMPLE_HEIGHT);
+        const qualityAnalysis = analyzeFrameQuality(
+          qualityPixels.data,
+          UPLOAD_QUALITY_SAMPLE_WIDTH,
+          UPLOAD_QUALITY_SAMPLE_HEIGHT,
+          null
+        );
+
         const targetOcrWidth = Math.max(190, Math.min(360, Math.round(width * 0.36)));
         const ratio = targetOcrWidth / Math.max(1, width);
         const targetOcrHeight = Math.max(52, Math.min(120, Math.round(height * ratio)));
@@ -234,10 +265,14 @@ export function DenominationPage() {
           return;
         }
 
-        if (confidence >= bestConfidence) {
+        const qualityScore = qualityAnalysis.score;
+        const combinedScore = confidence * 0.58 + qualityScore * 0.42;
+
+        if (combinedScore >= bestScore) {
           bestCandidate = candidate;
           bestConfidence = confidence;
-          bestQuality = Math.max(58, Math.min(100, confidence + 8));
+          bestQuality = qualityScore;
+          bestScore = combinedScore;
         }
       };
 
@@ -252,7 +287,7 @@ export function DenominationPage() {
         await scanRegion(0, 0, targetWidth, targetHeight);
       }
 
-      const estimatedEffectiveness = Math.round(bestConfidence * 0.78 + bestQuality * 0.22);
+      const estimatedEffectiveness = Math.round(bestConfidence * 0.55 + bestQuality * 0.45);
 
       if (!bestCandidate || estimatedEffectiveness < MIN_UPLOAD_PREVIEW_CONFIDENCE) {
         setFormError("Imagen borrosa. Intenta escanearlo de forma manual.");
