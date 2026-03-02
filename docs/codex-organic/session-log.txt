@@ -270,3 +270,21 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
 - Se agrega efecto visual de captura (flash breve) al pulsar "Escanear".
 - Se mantiene guia de enfoque de camara de primera vez.
 - Build web validado correctamente.
+[2026-03-02 | Modo Turbo escaner]
+- Flujo optimizado para latencia post-click en boton "Escanear".
+- Captura unica de frame completo y OCR sobre recortes (evita lecturas repetidas directas de video).
+- Estrategia OCR en 2 fases:
+  - quick pass (resolucion reducida) en maximo 2 zonas prioritarias.
+  - deep pass (mas preciso) solo si quick pass no alcanza confianza.
+- Se reduce trabajo por captura:
+  - menos zonas analizadas por defecto.
+  - preprocesado ligero en quick pass y binarizacion solo en deep pass.
+- Aceptacion temprana con umbral turbo para cortar lectura en cuanto hay serial confiable.
+- Se mantiene resultado actual de UX: "Tu numero de serie es \"X\" - B".
+- Build web validado correctamente.
+[2026-03-02 | Modo Turbo escaner | micro-ajuste de latencia]
+- Quick pass ahora prueba primero la zona primaria por denominacion (10/20: superior, 50: inferior).
+- Solo ejecuta la segunda zona si la primera no logra confianza suficiente.
+- Se mantiene deep pass como respaldo, pero se activa menos veces en capturas buenas.
+- Resultado: menor tiempo promedio de lectura en clics exitosos.
+- Build web validado correctamente.
