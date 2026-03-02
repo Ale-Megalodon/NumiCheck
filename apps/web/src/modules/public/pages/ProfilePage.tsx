@@ -2,6 +2,7 @@ import { type ChangeEvent, type FormEvent, useEffect, useMemo, useState } from "
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../app/providers/AuthProvider";
 import { HamburgerMenu } from "../components/HamburgerMenu";
+import { BackHomeButton } from "../components/BackHomeButton";
 import { PublicBrand } from "../components/PublicBrand";
 import {
   getPublicProfile,
@@ -202,6 +203,7 @@ export function ProfilePage() {
           <HamburgerMenu />
           <PublicBrand loading={loading} user={user} />
         </header>
+        <BackHomeButton loading={loading} />
 
         <section className="profile-shell">
           {loading ? (

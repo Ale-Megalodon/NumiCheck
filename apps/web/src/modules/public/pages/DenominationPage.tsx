@@ -9,6 +9,7 @@ import {
 } from "../../admin/services/illegalRangesStore";
 import { HamburgerMenu } from "../components/HamburgerMenu";
 import { PublicBrand } from "../components/PublicBrand";
+import { BackHomeButton } from "../components/BackHomeButton";
 import { SerialScannerPanel } from "../components/SerialScannerPanel";
 import { BANKNOTE_OPTIONS } from "../constants/banknotes";
 import { getSharedOcrWorker, warmupSharedOcrWorker } from "../services/ocrWorkerStore";
@@ -327,6 +328,7 @@ export function DenominationPage() {
           <HamburgerMenu />
           <PublicBrand loading={loading} user={user} />
         </header>
+        <BackHomeButton loading={loading} />
 
         <section className="denomination-screen">
           {loading ? (

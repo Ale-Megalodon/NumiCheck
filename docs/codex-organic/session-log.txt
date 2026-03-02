@@ -388,3 +388,14 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
   - efecto neón en opcion seleccionada de modo oscuro
   - skeletons dark con pulso suave
 - Build web validado correctamente.
+[2026-03-02 | Boton volver inicio + panel emojis]
+- Se agrega boton global "Volver al inicio" para paginas extra:
+  - billete, perfil, historial, configuracion, ayuda y login.
+  - incluye skeleton dedicado durante carga.
+- Se crea componente reutilizable BackHomeButton para evitar codigo duplicado.
+- Se agrega estilo light/dark para el boton de regreso.
+- Se corrige panel de emojis:
+  - causa: Vite solo sirve assets desde apps/web/public
+  - accion: se copian Flat_1..Flat_9 a apps/web/public/img
+  - resultado: ProfilePage ya puede detectar y mostrar el panel de emojis.
+- Build web validado correctamente.

@@ -353,6 +353,33 @@ body {
   min-height: 52px;
 }
 
+.back-home-button {
+  margin-top: 0.65rem;
+  border: 1px solid #c9d9e1;
+  background: #ffffff;
+  color: var(--brand-primary);
+  border-radius: 999px;
+  min-height: 40px;
+  padding: 0.5rem 0.95rem;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+}
+
+.back-home-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(38, 70, 83, 0.12);
+}
+
+.back-home-skeleton {
+  margin-top: 0.65rem;
+  width: 156px;
+  height: 40px;
+  border-radius: 999px;
+}
+
 .public-brand {
   display: flex;
   align-items: flex-start;
@@ -2017,6 +2044,7 @@ body {
 }
 
 .theme-dark .menu-toggle,
+.theme-dark .back-home-button,
 .theme-dark .home-menu,
 .theme-dark .scanner-close,
 .theme-dark .scanner-secondary,

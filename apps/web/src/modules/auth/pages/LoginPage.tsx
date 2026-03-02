@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../app/providers/AuthProvider";
 import { LoginSkeleton } from "../components/LoginSkeleton";
 import { BrandWordmark } from "../../../shared/components/ui/BrandWordmark";
+import { BackHomeButton } from "../../public/components/BackHomeButton";
 
 export function LoginPage() {
   const { user, loading, loginWithGoogle, loginWithFacebook } = useAuth();
@@ -45,6 +46,7 @@ export function LoginPage() {
   return (
     <main className="auth-page">
       <section className="auth-card">
+        <BackHomeButton loading={uiLoading} />
         {uiLoading ? (
           <LoginSkeleton />
         ) : (
