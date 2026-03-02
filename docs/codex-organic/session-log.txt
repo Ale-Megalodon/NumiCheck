@@ -440,3 +440,30 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
 - Se agrega badge visible de version del motor en el panel de escaneo: "Turbo v3".
 - Se agrega estilo del badge en modo claro/oscuro para validacion rapida de despliegue.
 - Build web validado correctamente.
+[2026-03-02 | Umbral turbo >=60 + admin usuarios cloud]
+- Scanner turbo ajustado segun criterio solicitado:
+  - pasable desde 60 de efectividad (camara e imagen subida)
+  - serial OCR ahora permite fallback por digitos aun cuando no detecte letra B en texto OCR
+- Flujo subir imagen:
+  - umbral de preview reducido a 60
+  - mensaje de imagen borrosa se mantiene cuando no llega al minimo
+- Admin panel corregido para usuarios registrados entre dispositivos:
+  - store de admin users ahora sincroniza con Firebase Firestore (coleccion numicheck_admin_users)
+  - mantiene fallback localStorage si cloud falla
+  - panel admin ahora carga usuarios desde cloud-first con estado de carga
+- Firebase config actualizado para exportar firestore client.
+- Build web validado correctamente.
+[2026-03-02 | Configuracion estilo admin + ayuda dinamica]
+- Configuracion redisenada al estilo consola admin:
+  - modo simple con controles clave de velocidad
+  - boton Mostrar/Ocultar ajustes avanzados
+  - explicacion en parentesis para cada parametro tecnico
+  - mantiene guardado por cuenta + restablecer
+- Nueva pagina /ayuda dinamica:
+  - seccion 1: Como escanear (pasos con Anterior/Siguiente/Reiniciar)
+  - seccion 2: Como configurar tuning por modelo (pasos dinamicos)
+  - seccion 3: Contactanos (bloque desplegable + boton WhatsApp)
+  - enlace WhatsApp con mensaje: "Necesito tu ayuda NumiCheck!"
+- Se agrega skeleton para carga de pagina de ayuda.
+- Se agrega animacion de despliegue por pasos y soporte modo oscuro.
+- Build web validado correctamente.

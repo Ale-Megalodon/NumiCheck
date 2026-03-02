@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BrandWordmark } from "../../../shared/components/ui/BrandWordmark";
 import { IllegalRangesEditor } from "../components/IllegalRangesEditor";
 import { confirmRangeEdit } from "../utils/rangeSafety";
@@ -13,6 +13,7 @@ import {
 } from "../services/illegalRangesStore";
 import {
   deleteAdminUser,
+  getAdminUsersCloudFirst,
   getAdminUsers,
   type AdminUserRecord
 } from "../services/adminUsersStore";
@@ -52,6 +53,7 @@ function hasTuningPatchValues(patch: ScanTuningOverride["patch"]) {
 
 export function AdminPanelPage() {
   const [users, setUsers] = useState<AdminUserRecord[]>(() => getAdminUsers());
+  const [usersLoading, setUsersLoading] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [rangesByDenomination, setRangesByDenomination] = useState(() => getIllegalRanges());
   const [testDenomination, setTestDenomination] = useState<Denomination>("10");
@@ -69,10 +71,17 @@ export function AdminPanelPage() {
     [selectedUserId, users]
   );
 
-  const reloadUsers = () => {
-    setUsers(getAdminUsers());
+  const reloadUsers = async () => {
+    setUsersLoading(true);
+    const next = await getAdminUsersCloudFirst();
+    setUsers(next);
     setSelectedUserId(null);
+    setUsersLoading(false);
   };
+
+  useEffect(() => {
+    void reloadUsers();
+  }, []);
 
   const handleDelete = (uid: string) => {
     const confirmed = window.confirm("Eliminar usuario de la tabla del panel?");
@@ -213,7 +222,11 @@ export function AdminPanelPage() {
                 </tr>
               </thead>
               <tbody>
-                {users.length === 0 ? (
+                {usersLoading ? (
+                  <tr>
+                    <td colSpan={4}>Cargando usuarios registrados...</td>
+                  </tr>
+                ) : users.length === 0 ? (
                   <tr>
                     <td colSpan={4}>Aun no hay usuarios registrados.</td>
                   </tr>

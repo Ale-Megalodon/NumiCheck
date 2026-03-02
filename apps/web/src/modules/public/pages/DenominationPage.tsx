@@ -39,7 +39,7 @@ type OcrWorker = {
 
 const MAX_UPLOAD_IMAGE_BYTES = 6 * 1024 * 1024;
 const MAX_UPLOAD_SIDE = 1280;
-const MIN_UPLOAD_PREVIEW_CONFIDENCE = 70;
+const MIN_UPLOAD_PREVIEW_CONFIDENCE = 60;
 const UPLOAD_QUALITY_SAMPLE_WIDTH = 180;
 const UPLOAD_QUALITY_SAMPLE_HEIGHT = 56;
 
@@ -332,7 +332,7 @@ export function DenominationPage() {
     }
 
     const weighted = Math.round(scanPreview.confidence * 0.78 + scanPreview.quality * 0.22);
-    return Math.max(70, Math.min(99, weighted));
+    return Math.max(60, Math.min(99, weighted));
   }, [scanPreview]);
 
   const handleManualSubmit = (event: FormEvent<HTMLFormElement>) => {

@@ -36,6 +36,7 @@ export function SettingsPage() {
   const [settings, setSettings] = useState<PublicUserSettings>(() => getPublicUserSettings(user?.uid));
   const [hydrating, setHydrating] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
     if (loading) {
@@ -159,29 +160,11 @@ export function SettingsPage() {
 
               <section className="settings-section">
                 <h2>Configurar velocidad de escaneo</h2>
-                <p className="settings-note">Tabla personalizada para tu cuenta (igual estilo del admin).</p>
+                <p className="settings-note">Tuning por cuenta (estilo consola admin). Aplica solo a tu perfil.</p>
 
-                <div className="settings-grid">
+                <div className="admin-quick-grid">
                   <label className="admin-field">
-                    <span>baseDelayMs</span>
-                    <input
-                      className="admin-input"
-                      type="number"
-                      value={toInputValue(settings.scanPatch.baseDelayMs)}
-                      onChange={(event) => updatePatchField("baseDelayMs", event.target.value)}
-                    />
-                  </label>
-                  <label className="admin-field">
-                    <span>ocrMissDelayMs</span>
-                    <input
-                      className="admin-input"
-                      type="number"
-                      value={toInputValue(settings.scanPatch.ocrMissDelayMs)}
-                      onChange={(event) => updatePatchField("ocrMissDelayMs", event.target.value)}
-                    />
-                  </label>
-                  <label className="admin-field">
-                    <span>readHitDelayMs</span>
+                    <span>readHitDelayMs (pausa entre lecturas validas; menor = mas rapido)</span>
                     <input
                       className="admin-input"
                       type="number"
@@ -190,16 +173,7 @@ export function SettingsPage() {
                     />
                   </label>
                   <label className="admin-field">
-                    <span>requiredHits</span>
-                    <input
-                      className="admin-input"
-                      type="number"
-                      value={toInputValue(settings.scanPatch.requiredHits)}
-                      onChange={(event) => updatePatchField("requiredHits", event.target.value)}
-                    />
-                  </label>
-                  <label className="admin-field">
-                    <span>fastAcceptConfidence</span>
+                    <span>fastAcceptConfidence (confianza minima para aceptar rapido)</span>
                     <input
                       className="admin-input"
                       type="number"
@@ -207,17 +181,100 @@ export function SettingsPage() {
                       onChange={(event) => updatePatchField("fastAcceptConfidence", event.target.value)}
                     />
                   </label>
+                </div>
+
+                <div className="admin-inline-actions">
+                  <button type="button" className="menu-toggle" onClick={() => setShowAdvanced((prev) => !prev)}>
+                    {showAdvanced ? "Ocultar ajustes avanzados" : "Mostrar ajustes avanzados"}
+                  </button>
+                </div>
+
+                {showAdvanced ? (
+                  <>
+                    <p className="admin-note">Deja vacio un campo para mantener el valor automatico.</p>
+
+                    <div className="admin-inline-grid">
+                      <label className="admin-field">
+                        <span>baseDelayMs (espera base entre capturas)</span>
+                        <input
+                          className="admin-input"
+                          type="number"
+                          value={toInputValue(settings.scanPatch.baseDelayMs)}
+                          onChange={(event) => updatePatchField("baseDelayMs", event.target.value)}
+                        />
+                      </label>
+                      <label className="admin-field">
+                        <span>ocrMissDelayMs (espera cuando OCR falla)</span>
+                        <input
+                          className="admin-input"
+                          type="number"
+                          value={toInputValue(settings.scanPatch.ocrMissDelayMs)}
+                          onChange={(event) => updatePatchField("ocrMissDelayMs", event.target.value)}
+                        />
+                      </label>
+                      <label className="admin-field">
+                        <span>readHitDelayMs (espera entre lecturas buenas)</span>
+                        <input
+                          className="admin-input"
+                          type="number"
+                          value={toInputValue(settings.scanPatch.readHitDelayMs)}
+                          onChange={(event) => updatePatchField("readHitDelayMs", event.target.value)}
+                        />
+                      </label>
+                      <label className="admin-field">
+                        <span>requiredHits (lecturas seguidas para confirmar)</span>
+                        <input
+                          className="admin-input"
+                          type="number"
+                          value={toInputValue(settings.scanPatch.requiredHits)}
+                          onChange={(event) => updatePatchField("requiredHits", event.target.value)}
+                        />
+                      </label>
+                      <label className="admin-field">
+                        <span>fastAcceptConfidence (umbral de aceptacion rapida)</span>
+                        <input
+                          className="admin-input"
+                          type="number"
+                          value={toInputValue(settings.scanPatch.fastAcceptConfidence)}
+                          onChange={(event) => updatePatchField("fastAcceptConfidence", event.target.value)}
+                        />
+                      </label>
+                      <label className="admin-field">
+                        <span>immediateAcceptConfidence (aceptacion inmediata)</span>
+                        <input
+                          className="admin-input"
+                          type="number"
+                          value={toInputValue(settings.scanPatch.immediateAcceptConfidence)}
+                          onChange={(event) => updatePatchField("immediateAcceptConfidence", event.target.value)}
+                        />
+                      </label>
+                      <label className="admin-field">
+                        <span>qualityAcceptFloor (piso minimo de calidad)</span>
+                        <input
+                          className="admin-input"
+                          type="number"
+                          value={toInputValue(settings.scanPatch.qualityAcceptFloor)}
+                          onChange={(event) => updatePatchField("qualityAcceptFloor", event.target.value)}
+                        />
+                      </label>
+                      <label className="admin-field">
+                        <span>maxOcrMs (tiempo maximo por lectura OCR)</span>
+                        <input
+                          className="admin-input"
+                          type="number"
+                          value={toInputValue(settings.scanPatch.maxOcrMs)}
+                          onChange={(event) => updatePatchField("maxOcrMs", event.target.value)}
+                        />
+                      </label>
+                    </div>
+                  </>
+                ) : (
+                  <p className="admin-note">Modo simple activo: usa ajustes turbo recomendados por defecto.</p>
+                )}
+
+                <div className="settings-grid">
                   <label className="admin-field">
-                    <span>immediateAcceptConfidence</span>
-                    <input
-                      className="admin-input"
-                      type="number"
-                      value={toInputValue(settings.scanPatch.immediateAcceptConfidence)}
-                      onChange={(event) => updatePatchField("immediateAcceptConfidence", event.target.value)}
-                    />
-                  </label>
-                  <label className="admin-field">
-                    <span>qualityAcceptFloor</span>
+                    <span>qualityAcceptFloor (calidad minima para aceptar)</span>
                     <input
                       className="admin-input"
                       type="number"
@@ -226,7 +283,7 @@ export function SettingsPage() {
                     />
                   </label>
                   <label className="admin-field">
-                    <span>maxOcrMs</span>
+                    <span>maxOcrMs (tope de tiempo OCR por intento)</span>
                     <input
                       className="admin-input"
                       type="number"

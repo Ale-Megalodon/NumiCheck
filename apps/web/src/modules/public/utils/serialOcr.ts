@@ -63,15 +63,13 @@ export function extractSerialDigitsFromOcr(ocrText: string, boundsInput: OcrDigi
     return pickBest(candidates, bounds.maxDigits);
   }
 
-  if (safe.includes("B")) {
-    let match = genericDigits.exec(safe);
-    while (match) {
-      const normalized = normalizeDigits(match[1] ?? "");
-      if (normalized.length >= bounds.minDigits && normalized.length <= bounds.maxDigits) {
-        candidates.push(normalized);
-      }
-      match = genericDigits.exec(safe);
+  let match = genericDigits.exec(safe);
+  while (match) {
+    const normalized = normalizeDigits(match[1] ?? "");
+    if (normalized.length >= bounds.minDigits && normalized.length <= bounds.maxDigits) {
+      candidates.push(normalized);
     }
+    match = genericDigits.exec(safe);
   }
 
   return pickBest(candidates, bounds.maxDigits);
