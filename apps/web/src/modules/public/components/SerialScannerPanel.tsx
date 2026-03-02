@@ -14,7 +14,10 @@ import {
 } from "../utils/scanTelemetryStore";
 import { mergeDeviceProfileWithPatch, resolveDeviceProfileForDenomination } from "../utils/deviceProfile";
 import { buildScanRegions, type ScannerDenomination } from "../utils/scanRegionProfiles";
-import { extractSerialDigitsFromOcr, type OcrDigitBounds } from "../utils/serialOcr";
+import {
+  extractSerialCandidatesFromOcr,
+  type OcrDigitBounds
+} from "../utils/serialOcr";
 
 type ScanStatus = "starting" | "ready" | "reading" | "error";
 
@@ -118,12 +121,111 @@ function getCandidateSerial(candidate: Candidate | null) {
   return candidate ? candidate.serial : "";
 }
 
+function hammingDistance(left: string, right: string) {
+  if (left.length !== right.length) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  let diff = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) {
+      diff += 1;
+    }
+  }
+
+  return diff;
+}
+
+function buildConsensusSerial(candidates: CandidateVote[]) {
+  const first = candidates[0];
+  if (!first) {
+    return "";
+  }
+
+  const length = first.serial.length;
+  let serial = "";
+
+  for (let digitIndex = 0; digitIndex < length; digitIndex += 1) {
+    const counts = new Map<string, number>();
+
+    candidates.forEach((candidate) => {
+      const digit = candidate.serial[digitIndex] ?? "";
+      if (!digit) {
+        return;
+      }
+
+      counts.set(digit, (counts.get(digit) ?? 0) + Math.max(1, candidate.votes));
+    });
+
+    let bestDigit = first.serial[digitIndex] ?? "";
+    let bestCount = -1;
+    counts.forEach((count, digit) => {
+      if (count > bestCount) {
+        bestCount = count;
+        bestDigit = digit;
+      }
+    });
+
+    serial += bestDigit;
+  }
+
+  return serial;
+}
+
 function chooseBestCandidateFromVotes(voteMap: Map<string, CandidateVote>) {
   if (voteMap.size === 0) {
     return null;
   }
 
-  const ordered = Array.from(voteMap.values()).sort((a, b) => {
+  const raw = Array.from(voteMap.values());
+  if (raw.length === 1) {
+    return raw[0] ?? null;
+  }
+
+  const fuzzyMerged: CandidateVote[] = [];
+
+  raw.forEach((anchor) => {
+    const cluster = raw.filter((candidate) => hammingDistance(anchor.serial, candidate.serial) <= 1);
+
+    if (cluster.length <= 1) {
+      fuzzyMerged.push(anchor);
+      return;
+    }
+
+    const totalVotes = cluster.reduce((sum, item) => sum + item.votes, 0);
+    const weightedConfidence = Math.round(
+      cluster.reduce((sum, item) => sum + item.confidence * item.votes, 0) / Math.max(1, totalVotes)
+    );
+    const weightedQuality = Math.round(
+      cluster.reduce((sum, item) => sum + item.quality * item.votes, 0) / Math.max(1, totalVotes)
+    );
+    const weightedScore =
+      cluster.reduce((sum, item) => sum + item.score * item.votes, 0) / Math.max(1, totalVotes) + totalVotes * 2.5;
+    const consensusSerial = buildConsensusSerial(cluster);
+    const representative = [...cluster].sort((a, b) => b.votes - a.votes || b.score - a.score)[0] ?? anchor;
+    const firstSeenAt = Math.min(...cluster.map((item) => item.firstSeenAt));
+
+    fuzzyMerged.push({
+      serial: consensusSerial || anchor.serial,
+      confidence: clamp(weightedConfidence + Math.min(8, totalVotes), MIN_CONFIDENCE, 99),
+      quality: clamp(weightedQuality, 0, 100),
+      score: weightedScore,
+      zoneLabel: representative.zoneLabel,
+      regionIndex: representative.regionIndex,
+      votes: totalVotes,
+      firstSeenAt
+    });
+  });
+
+  const deduped = new Map<string, CandidateVote>();
+  fuzzyMerged.forEach((candidate) => {
+    const existing = deduped.get(candidate.serial);
+    if (!existing || candidate.votes > existing.votes || candidate.score > existing.score) {
+      deduped.set(candidate.serial, candidate);
+    }
+  });
+
+  const ordered = Array.from(deduped.values()).sort((a, b) => {
     if (b.votes !== a.votes) {
       return b.votes - a.votes;
     }
@@ -635,59 +737,77 @@ export function SerialScannerPanel({
 
         const text = result.data?.text ?? "";
         const rawConfidence = Math.round(result.data?.confidence ?? 0);
-        const candidate = extractSerialDigitsFromOcr(text, digitBounds);
+        const candidates = extractSerialCandidatesFromOcr(text, digitBounds).slice(0, 3);
 
-        if (!candidate) {
+        if (candidates.length === 0) {
           observedConfidence = Math.max(observedConfidence, rawConfidence);
           bestHint = `No legible en ${region.label}.`;
           return false;
         }
 
-        const confidence = boostConfidenceFromQuality(
-          rawConfidence,
-          quality.score,
-          candidate.length,
-          digitBounds.maxDigits
-        );
-        const boostedConfidence = mode === "deep" ? clamp(confidence + 4, MIN_CONFIDENCE, 99) : confidence;
-        observedConfidence = Math.max(observedConfidence, boostedConfidence);
+        let acceptedByAnyCandidate = false;
 
-        if (boostedConfidence < MIN_CONFIDENCE) {
-          bestHint = `No legible en ${region.label}.`;
-          return false;
+        candidates.forEach((candidate, candidateIndex) => {
+          const confidence = boostConfidenceFromQuality(
+            rawConfidence,
+            quality.score,
+            candidate.length,
+            digitBounds.maxDigits
+          );
+          const candidateRankPenalty = candidateIndex * 3;
+          const boostedConfidence = clamp(
+            mode === "deep" ? confidence + 4 - candidateRankPenalty : confidence - candidateRankPenalty,
+            MIN_CONFIDENCE,
+            99
+          );
+
+          observedConfidence = Math.max(observedConfidence, boostedConfidence);
+          if (boostedConfidence < MIN_CONFIDENCE) {
+            return;
+          }
+
+          const candidateScore =
+            boostedConfidence * 0.64 +
+            quality.score * 0.3 +
+            region.priority * 10 -
+            burstIndex * 1.4 +
+            (mode === "deep" ? 2 : 0) +
+            (passIndex === 2 ? 1 : 0) -
+            candidateIndex * 3;
+          const current: Candidate = {
+            serial: candidate,
+            confidence: boostedConfidence,
+            quality: quality.score,
+            score: candidateScore,
+            zoneLabel: region.label,
+            regionIndex
+          };
+
+          if (!best || current.score > best.score) {
+            best = current;
+            bestScore = current.score;
+          }
+          const votes = registerCandidateVote(current, burstIndex + passIndex * 10 + candidateIndex);
+
+          const quickAccept = boostedConfidence >= quickAcceptConfidence;
+          const immediateAccept =
+            boostedConfidence >= immediateAcceptConfidence && quality.score >= qualityAcceptFloor;
+          const voteAccept = votes >= VOTE_ACCEPT_MIN_HITS && boostedConfidence >= voteAcceptConfidence;
+          const deepModeAccept =
+            mode === "deep" &&
+            boostedConfidence >= voteAcceptConfidence - 6 &&
+            quality.score >= Math.max(38, qualityAcceptFloor - 8);
+
+          if (quickAccept || immediateAccept || voteAccept || deepModeAccept) {
+            acceptedByAnyCandidate = true;
+          }
+        });
+
+        if (!acceptedByAnyCandidate && rawConfidence >= MIN_CONFIDENCE) {
+          bestHint = `Lectura parcial en ${region.label}.`;
         }
 
-        const candidateScore =
-          boostedConfidence * 0.64 +
-          quality.score * 0.3 +
-          region.priority * 10 -
-          burstIndex * 1.4 +
-          (mode === "deep" ? 2 : 0) +
-          (passIndex === 2 ? 1 : 0);
-        const current: Candidate = {
-          serial: candidate,
-          confidence: boostedConfidence,
-          quality: quality.score,
-          score: candidateScore,
-          zoneLabel: region.label,
-          regionIndex
-        };
-
-        if (!best || current.score > best.score) {
-          best = current;
-          bestScore = current.score;
-        }
-        const votes = registerCandidateVote(current, burstIndex + passIndex * 10);
-
-        const quickAccept = boostedConfidence >= quickAcceptConfidence;
-        const immediateAccept = boostedConfidence >= immediateAcceptConfidence && quality.score >= qualityAcceptFloor;
-        const voteAccept = votes >= VOTE_ACCEPT_MIN_HITS && boostedConfidence >= voteAcceptConfidence;
-        const deepModeAccept =
-          mode === "deep" &&
-          boostedConfidence >= voteAcceptConfidence - 6 &&
-          quality.score >= Math.max(38, qualityAcceptFloor - 8);
-
-        return quickAccept || immediateAccept || voteAccept || deepModeAccept;
+        return acceptedByAnyCandidate;
       };
 
       const primaryRegion = quickRegions[0] ?? null;
@@ -806,7 +926,12 @@ export function SerialScannerPanel({
       const acceptedQuality = getCandidateQuality(best);
       const acceptedZone = getCandidateZoneLabel(best);
       const acceptedSerial = getCandidateSerial(best);
-      const acceptedVotes = acceptedSerial ? (voteMap.get(acceptedSerial)?.votes ?? 0) : 0;
+      const acceptedVotes = acceptedSerial
+        ? Math.max(
+            voteMap.get(acceptedSerial)?.votes ?? 0,
+            votedCandidate && votedCandidate.serial === acceptedSerial ? votedCandidate.votes : 0
+          )
+        : 0;
       const acceptedEffectiveness = Math.round(acceptedConfidence * 0.22 + acceptedQuality * 0.78);
       const hasAcceptedCandidate =
         acceptedSerial.length >= digitBounds.minDigits &&
