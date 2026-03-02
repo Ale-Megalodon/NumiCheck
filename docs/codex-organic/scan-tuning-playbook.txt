@@ -1,0 +1,64 @@
+﻿NUMICHECK - PLAYBOOK DE CALIBRACION DE ESCANER (MVP NACIONAL)
+
+Objetivo
+- Bajar tiempo de deteccion real por equipo a 2-3 segundos promedio.
+- Mantener precision alta en serie B, evitando falsos positivos.
+
+Antes de probar en cada celular
+1) Abrir una pagina de billete (10/20/50).
+2) Entrar al escaner.
+3) Pulsar "Reiniciar telemetria".
+4) Confirmar que la luz de ambiente sea normal (sin reflejo extremo).
+
+Protocolo por celular (repetir para 10, 20, 50)
+1) Hacer 10 lecturas buenas (encuadre correcto).
+2) Hacer 5 lecturas en condicion media (poca luz o mano en movimiento leve).
+3) Registrar observaciones: tarda? falla? pide reintento?
+4) Pulsar "Copiar diagnostico" y guardar el JSON en un txt con nombre del modelo.
+
+Como crear perfil por modelo en panel admin
+Ruta secreta:
+- #/control-interno-nc-a73k9q
+
+Seccion:
+- "Tuning de escaner por modelo"
+
+Campos minimos recomendados
+- Etiqueta: nombre humano del equipo (ej. Redmi Note 12)
+- Patron User-Agent: texto que identifica el modelo en UA
+- Denominacion: all (primera calibracion), luego especifica 10/20/50 si hace falta
+- Tier forzado: auto (si hay inestabilidad, probar mid o low)
+
+Ajustes numericos recomendados (orden)
+1) baseDelayMs: si esta lento, bajar 10-20.
+2) readHitDelayMs: si esta lento, bajar 5-15.
+3) requiredHits: bajar a 1 solo en equipos muy estables.
+4) fastAcceptConfidence: bajar 2-4 para acelerar si no hay falsos positivos.
+5) immediateAcceptConfidence: bajar 2-3 si calidad media sigue tardando.
+6) qualityAcceptFloor: bajar 1-3 solo si OCR da buena confianza pero bloquea por calidad.
+
+Regla de seguridad
+- Si aparece cualquier falso "legal/ilegal", subir:
+  - requiredHits (+1)
+  - fastAcceptConfidence (+2 o +3)
+  - qualityAcceptFloor (+2)
+
+Tabla objetivo final por modelo
+- Modelo
+- Patron UA
+- Tier
+- baseDelayMs
+- readHitDelayMs
+- requiredHits
+- fastAcceptConfidence
+- immediateAcceptConfidence
+- qualityAcceptFloor
+- maxOcrMs
+- Tiempo promedio real (s)
+- Tasa de acierto (%)
+
+Meta de cierre
+- 3 celulares calibrados.
+- 30+ lecturas por celular.
+- Tiempo promedio <= 3.0s en condicion normal.
+- Sin falsos positivos en ronda final.

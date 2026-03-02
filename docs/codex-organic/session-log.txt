@@ -194,3 +194,65 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
   - Formulario valida entre min/max y recorta input al maximo permitido.
   - Con tablas actuales: minimo 8 digitos, maximo 9 digitos.
 - Build web validado correctamente.
+[2026-03-02 | Bloque Escaner | Bloque 1 ejecutado]
+- Se integra flujo real de camara en paginas /billete/10, /billete/20 y /billete/50.
+- Nuevo componente: SerialScannerPanel (carga camara trasera, overlay de zona de serial y OCR en vivo).
+- OCR integrado con tesseract.js (carga dinamica al abrir escaner, no bloquea inicio general).
+- Preprocesado de imagen para OCR (grises + contraste) y recorte de ROI para acelerar lectura.
+- Deteccion por consenso de frames (2 hits) + confianza minima para evitar falsos positivos.
+- Primera vez muestra mini-guia de escaneo y luego se guarda en localStorage.
+- Al detectar serial, verifica automaticamente contra tabla por denominacion y dispara modal legal/ilegal existente.
+- Mantiene fallback a ingreso manual desde el panel de escaneo.
+- Nuevo util de parsing OCR robusto para extraer digitos desde texto ruidoso.
+- Build web validado correctamente.
+[2026-03-02 | Bloque Escaner | Bloque 2 optimizacion]
+- Se agrega cache global del worker OCR (tesseract) para reusar motor entre escaneos y evitar recarga completa repetida.
+- Se agrega warmup automatico del OCR al entrar a cada pagina de billete (precalentamiento en background).
+- Se implementa analisis de calidad de frame antes de OCR:
+  - luz (brillo), contraste, nitidez y movimiento.
+  - si la calidad no es buena, se evita OCR y se muestra instruccion de correccion.
+- Bucle de lectura optimizado con tiempos adaptativos (mas rapido al confirmar candidato, mas pausado cuando la imagen es mala).
+- Confirmacion inteligente:
+  - aceptacion rapida con alta confianza + buena calidad.
+  - o consenso por multiples hits para evitar falsos positivos.
+- UI del escaner mejorada con barra de calidad en tiempo real (good/warn/bad).
+- Se mantiene guia inicial, fallback manual y verificacion inmediata contra tablas por denominacion.
+- Build web validado correctamente.
+[2026-03-02 | Bloque Escaner | Bloque 3 ejecutado]
+- Se agrega ROI inteligente por denominacion (10/20/50) con rotacion de zonas de lectura (superior, inferior y fallback central).
+- El escaner ahora alterna zonas activas y muestra etiqueta de zona en tiempo real.
+- Se reduce carga OCR por frame usando escalado a resolucion objetivo (canvas OCR mas pequeno para acelerar).
+- Nuevo sistema de decision anti-error:
+  - votos con score ponderado (confianza OCR + calidad de frame + prioridad de zona).
+  - decay temporal de votos viejos.
+  - aceptacion por score/consenso o aceptacion inmediata con confianza muy alta.
+- Ciclo de lectura adaptativo por latencia real de OCR (cooldowns dinamicos).
+- Se mantiene control de calidad previo a OCR (luz, contraste, nitidez, movimiento) y guia inicial.
+- Conexion actualizada para pasar denominacion al escaner y usar perfil correcto de regiones.
+- Build web validado correctamente.
+[2026-03-02 | Bloque Escaner | Bloque 4 ajuste fino movil]
+- Se agrega perfil adaptativo por dispositivo (low/mid/high) usando pistas de hardware del navegador.
+- El escaner ahora ajusta delays y criterios de aceptacion segun perfil del dispositivo para mejorar latencia real.
+- Se crea telemetria local de escaneo por denominacion:
+  - intentos, exitos, promedios OCR/calidad/confianza.
+  - zonas ganadoras historicas.
+- Los umbrales de aceptacion ahora se auto-ajustan con telemetria (mas rapido si la lectura es estable, mas estricto si hay ruido).
+- Priorizacion inteligente de zonas ROI segun historial de exito del mismo dispositivo.
+- Se agrega soporte de linterna (torch) cuando el dispositivo/navegador lo soporta.
+- UI de diagnostico rapido en escaner:
+  - badge de modo (LOW/MID/HIGH), calidad, zona activa, OCR promedio y resumen de historial.
+- Se mantiene warmup OCR, consenso multi-frame, fallback manual y verificacion inmediata por tabla.
+- Build web validado correctamente.
+[2026-03-02 | Bloque Escaner | Siguiente paso calibracion multi-dispositivo]
+- Se implementa sistema de perfiles de tuning por modelo/User-Agent con persistencia local.
+- DeviceProfile ahora puede resolver perfil en modo AUTO u OVERRIDE segun patron UA y denominacion.
+- Se agrega seccion en panel admin para gestionar perfiles de tuning:
+  - crear, editar, activar/desactivar y eliminar.
+  - ajustes de delays/umbrales OCR por modelo.
+- Escaner agrega toolkit de calibracion:
+  - boton "Copiar diagnostico" (JSON completo de dispositivo, perfil activo, telemetria y sesion).
+  - boton "Reiniciar telemetria" para pruebas limpias por celular.
+  - muestra fuente de perfil (AUTO/OVERRIDE) y etiqueta del perfil aplicado.
+- Telemetria de escaneo expone lectura global y reset para soporte de calibracion.
+- Se agrega playbook de tuning en docs/codex-organic/scan-tuning-playbook.txt.
+- Build web validado correctamente.

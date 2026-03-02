@@ -1,4 +1,4 @@
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { useAuth } from "../../../app/providers/AuthProvider";
 import { BrandWordmark } from "../../../shared/components/ui/BrandWordmark";
@@ -9,7 +9,9 @@ import {
   evaluateSeriesAgainstIllegalRanges
 } from "../../admin/services/illegalRangesStore";
 import { HamburgerMenu } from "../components/HamburgerMenu";
+import { SerialScannerPanel } from "../components/SerialScannerPanel";
 import { BANKNOTE_OPTIONS } from "../constants/banknotes";
+import { warmupSharedOcrWorker } from "../services/ocrWorkerStore";
 
 type ModalOutcome = {
   status: "illegal" | "legal";
@@ -42,10 +44,10 @@ export function DenominationPage() {
   const { loading, user } = useAuth();
   const selected = BANKNOTE_OPTIONS.find((item) => item.denomination === denomination);
   const [showManualForm, setShowManualForm] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
   const [serialDigits, setSerialDigits] = useState("");
   const [seriesLetter, setSeriesLetter] = useState("B");
   const [formError, setFormError] = useState("");
-  const [showScanHint, setShowScanHint] = useState(false);
   const [modalOutcome, setModalOutcome] = useState<ModalOutcome | null>(null);
 
   const normalizedSeries = useMemo(() => seriesLetter.toUpperCase().slice(0, 1), [seriesLetter]);
@@ -61,11 +63,42 @@ export function DenominationPage() {
   const denominationValue = selected.denomination as Denomination;
   const digitBounds = getSerialDigitBounds(denominationValue);
 
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      void warmupSharedOcrWorker();
+    }, 280);
+
+    return () => window.clearTimeout(timer);
+  }, [loading]);
+
+  const resolveSerial = (digits: string) => {
+    const serialWithSeries = `${digits}B`;
+    const evaluation = evaluateSeriesAgainstIllegalRanges(denominationValue, serialWithSeries);
+
+    if (evaluation.status === "invalid") {
+      setFormError(evaluation.reason);
+      return;
+    }
+
+    const finalStatus = evaluation.status === "illegal" ? "illegal" : "legal";
+    setModalOutcome({
+      status: finalStatus,
+      serial: digits
+    });
+
+    if (user) {
+      registerAdminUserQuery(user.uid, finalStatus);
+    }
+  };
+
   const handleScanClick = () => {
-    setShowScanHint(true);
-    window.setTimeout(() => {
-      setShowScanHint(false);
-    }, 1800);
+    setFormError("");
+    setShowManualForm(false);
+    setShowScanner(true);
   };
 
   const handleManualSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -84,23 +117,7 @@ export function DenominationPage() {
       return;
     }
 
-    const serialWithSeries = `${serialDigits}${normalizedSeries}`;
-    const evaluation = evaluateSeriesAgainstIllegalRanges(denominationValue, serialWithSeries);
-
-    if (evaluation.status === "invalid") {
-      setFormError(evaluation.reason);
-      return;
-    }
-
-    const finalStatus = evaluation.status === "illegal" ? "illegal" : "legal";
-    setModalOutcome({
-      status: finalStatus,
-      serial: serialDigits
-    });
-
-    if (user) {
-      registerAdminUserQuery(user.uid, finalStatus);
-    }
+    resolveSerial(serialDigits);
   };
 
   return (
@@ -147,7 +164,22 @@ export function DenominationPage() {
                 </button>
               </section>
 
-              {showScanHint ? <p className="scan-note">Escaner disponible en la siguiente fase.</p> : null}
+              {showScanner ? (
+                <SerialScannerPanel
+                  denomination={denominationValue}
+                  denominationLabel={selected.label}
+                  digitBounds={digitBounds}
+                  onDetected={(digits) => {
+                    setShowScanner(false);
+                    resolveSerial(digits);
+                  }}
+                  onClose={() => setShowScanner(false)}
+                  onManualFallback={() => {
+                    setShowScanner(false);
+                    setShowManualForm(true);
+                  }}
+                />
+              ) : null}
 
               {showManualForm ? (
                 <form className="manual-card" onSubmit={handleManualSubmit}>

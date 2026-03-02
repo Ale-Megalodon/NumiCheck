@@ -236,6 +236,13 @@ body {
   gap: 0.7rem;
 }
 
+.admin-inline-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-top: 0.75rem;
+}
+
 .admin-field {
   display: grid;
   gap: 0.35rem;
@@ -579,6 +586,244 @@ body {
   margin: 0.1rem 0 0;
   font-size: 0.9rem;
   color: #4a6370;
+}
+
+.scanner-panel {
+  width: 100%;
+  max-width: 700px;
+  background: #ffffff;
+  border: 1px solid #d8e4e8;
+  border-radius: 16px;
+  padding: 0.9rem;
+  box-shadow: 0 12px 26px rgba(38, 70, 83, 0.12);
+  display: grid;
+  gap: 0.75rem;
+}
+
+.scanner-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.scanner-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.scanner-tier-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 0.6rem;
+  border-radius: 999px;
+  border: 1px solid #c4d6de;
+  background: #ecf3f6;
+  color: #305160;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.scanner-header h2 {
+  margin: 0;
+  color: var(--brand-primary);
+  font-size: 1.1rem;
+}
+
+.scanner-header p {
+  margin: 0.25rem 0 0;
+  color: #4f6572;
+  font-size: 0.9rem;
+}
+
+.scanner-close {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid #d3dfe4;
+  background: #ffffff;
+  color: var(--brand-primary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.scanner-viewport {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #0d1a1f;
+}
+
+.scanner-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.scanner-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.scanner-target {
+  width: min(88%, 560px);
+  height: 25%;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  border-radius: 14px;
+  background: linear-gradient(
+    180deg,
+    rgba(42, 157, 143, 0.2) 0%,
+    rgba(42, 157, 143, 0.07) 100%
+  );
+  display: grid;
+  align-content: end;
+  justify-items: center;
+  padding-bottom: 0.35rem;
+}
+
+.scanner-target span {
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.scanner-loading {
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+}
+
+.scanner-status {
+  margin: 0;
+  color: var(--brand-primary);
+  font-weight: 600;
+}
+
+.scanner-quality {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.scanner-quality-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: #d7e4e9;
+  overflow: hidden;
+}
+
+.scanner-quality-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.16s linear;
+}
+
+.scanner-quality-fill--good {
+  background: #2a9d8f;
+}
+
+.scanner-quality-fill--warn {
+  background: #d7a43f;
+}
+
+.scanner-quality-fill--bad {
+  background: #c95a64;
+}
+
+.scanner-quality-text {
+  color: #58707b;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.scanner-zone-label {
+  margin: 0;
+  color: #5e7580;
+  font-size: 0.83rem;
+  font-weight: 700;
+}
+
+.scanner-progress {
+  margin: 0;
+  color: #49606d;
+  font-size: 0.9rem;
+}
+
+.scanner-progress--notice {
+  color: #2a9d8f;
+  font-weight: 700;
+}
+
+.scanner-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.scanner-secondary {
+  border: 1px solid #c8d9e0;
+  background: #ffffff;
+  color: var(--brand-primary);
+  border-radius: 10px;
+  min-height: 44px;
+  padding: 0.6rem 0.9rem;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.scanner-secondary--active {
+  border-color: #2a9d8f;
+  background: #d8f0eb;
+  color: #1f544d;
+}
+
+.scanner-canvas-hidden {
+  display: none;
+}
+
+.scanner-guide-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 24, 30, 0.52);
+  display: grid;
+  place-items: center;
+  z-index: 42;
+  padding: 1rem;
+}
+
+.scanner-guide-card {
+  width: min(100%, 420px);
+  border-radius: 14px;
+  border: 1px solid #d5e1e6;
+  background: #ffffff;
+  padding: 1rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.scanner-guide-card h3 {
+  margin: 0;
+  color: var(--brand-primary);
+}
+
+.scanner-guide-card p {
+  margin: 0;
+  color: #405965;
+  font-size: 0.93rem;
 }
 
 .manual-card {
@@ -1019,6 +1264,10 @@ body {
 
 @media (max-width: 760px) {
   .admin-quick-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-inline-grid {
     grid-template-columns: 1fr;
   }
 }
