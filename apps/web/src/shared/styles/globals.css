@@ -805,6 +805,21 @@ body {
   letter-spacing: 0.02em;
 }
 
+.scanner-version-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 0.62rem;
+  border-radius: 999px;
+  border: 1px solid #84cfc6;
+  background: #d9f4f0;
+  color: #1f6058;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
 .scanner-header h2 {
   margin: 0;
   color: var(--brand-primary);
@@ -2149,6 +2164,12 @@ body {
   background: #3a6473;
   border-color: #537b89;
   color: #e6f2f6;
+}
+
+.theme-dark .scanner-version-badge {
+  background: #2f7f75;
+  border-color: #66b9ad;
+  color: #eafff9;
 }
 
 .theme-dark .serial-result-card--scan {
