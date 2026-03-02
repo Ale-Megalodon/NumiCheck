@@ -44,12 +44,12 @@ const QUALITY_SAMPLE_WIDTH = 148;
 const QUALITY_SAMPLE_HEIGHT = 44;
 const MIN_CONFIDENCE = 30;
 const SNAP_FLASH_MS = 90;
-const SUPER_TURBO_PREVIEW_MIN_CONFIDENCE = 56;
+const SUPER_TURBO_PREVIEW_MIN_CONFIDENCE = 48;
 const TURBO_SECONDARY_WINDOW_MIN_MS = 380;
 const TURBO_SECONDARY_WINDOW_MAX_MS = 1100;
 const TURBO_SCAN_TOTAL_MIN_MS = 620;
 const TURBO_SCAN_TOTAL_MAX_MS = 1700;
-const MIN_QUALITY_TO_ATTEMPT_OCR = 32;
+const MIN_QUALITY_TO_ATTEMPT_OCR = 18;
 const PRIMARY_ZONE_BY_DENOMINATION: Record<ScannerDenomination, string> = {
   "10": "Zona superior",
   "20": "Zona superior",
@@ -58,9 +58,9 @@ const PRIMARY_ZONE_BY_DENOMINATION: Record<ScannerDenomination, string> = {
 
 function getOcrTargetSize(regionWidth: number, regionHeight: number, mode: "quick" | "deep") {
   if (mode === "quick") {
-    const width = Math.max(154, Math.min(300, Math.round(regionWidth * 0.3)));
+    const width = Math.max(132, Math.min(250, Math.round(regionWidth * 0.26)));
     const ratio = width / Math.max(1, regionWidth);
-    const height = Math.max(48, Math.min(110, Math.round(regionHeight * ratio)));
+    const height = Math.max(42, Math.min(92, Math.round(regionHeight * ratio)));
     return { width, height };
   }
 
@@ -286,8 +286,8 @@ export function SerialScannerPanel({
           audio: false,
           video: {
             facingMode: { ideal: "environment" },
-            width: { ideal: 960 },
-            height: { ideal: 540 }
+            width: { ideal: 720 },
+            height: { ideal: 405 }
           }
         });
 
@@ -366,8 +366,8 @@ export function SerialScannerPanel({
     }
 
     if (showGuide) {
-      setStatusText("Cierra la guia y luego pulsa Escanear.");
-      return;
+      setShowGuide(false);
+      window.localStorage.setItem(GUIDE_KEY, "1");
     }
 
     const video = videoRef.current;
@@ -536,8 +536,10 @@ export function SerialScannerPanel({
       const acceptedQuality = getCandidateQuality(best);
       const acceptedZone = getCandidateZoneLabel(best);
       const acceptedSerial = getCandidateSerial(best);
+      const acceptedEffectiveness = Math.round(acceptedConfidence * 0.78 + acceptedQuality * 0.22);
       const hasAcceptedCandidate =
-        acceptedSerial.length >= digitBounds.minDigits && acceptedConfidence >= SUPER_TURBO_PREVIEW_MIN_CONFIDENCE;
+        acceptedSerial.length >= digitBounds.minDigits &&
+        (acceptedConfidence >= SUPER_TURBO_PREVIEW_MIN_CONFIDENCE || acceptedEffectiveness >= 70);
 
       if (hasAcceptedCandidate) {
         setLastConfidence(acceptedConfidence);

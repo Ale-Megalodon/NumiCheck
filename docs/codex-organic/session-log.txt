@@ -399,3 +399,18 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
   - accion: se copian Flat_1..Flat_9 a apps/web/public/img
   - resultado: ProfilePage ya puede detectar y mostrar el panel de emojis.
 - Build web validado correctamente.
+[2026-03-02 | Ajuste scanner turbo + subir imagen >=70]
+- Escaner de camara optimizado para respuesta mas rapida:
+  - menor resolucion de captura (720x405) para reducir latencia
+  - ROI OCR quick mas pequeno para acelerar OCR
+  - umbral de calidad minima para OCR mas permisivo en modo turbo
+  - si la guia aparece y se pulsa Escanear, se cierra automaticamente y ejecuta lectura
+- Criterio de aceptacion turbo reforzado:
+  - se acepta preview si hay serie valida y cumple confianza minima turbo o efectividad >=70
+- Flujo de subir imagen actualizado:
+  - umbral para mostrar preview subido a >=70 de efectividad estimada
+  - si no alcanza o no detecta serie: "Imagen borrosa. Intenta escanearlo de forma manual."
+- Modal de preview ajustado al texto solicitado:
+  - "Tu serie X - B tiene un Y% de efectividad"
+  - botones: Escanear de nuevo / Verificar numero de serie
+- Build web validado correctamente.

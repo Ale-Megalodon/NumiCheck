@@ -38,7 +38,7 @@ type OcrWorker = {
 
 const MAX_UPLOAD_IMAGE_BYTES = 6 * 1024 * 1024;
 const MAX_UPLOAD_SIDE = 1280;
-const MIN_UPLOAD_PREVIEW_CONFIDENCE = 46;
+const MIN_UPLOAD_PREVIEW_CONFIDENCE = 70;
 
 function CameraMiniIcon() {
   return (
@@ -237,7 +237,7 @@ export function DenominationPage() {
         if (confidence >= bestConfidence) {
           bestCandidate = candidate;
           bestConfidence = confidence;
-          bestQuality = Math.max(48, Math.min(100, confidence + 6));
+          bestQuality = Math.max(58, Math.min(100, confidence + 8));
         }
       };
 
@@ -252,8 +252,10 @@ export function DenominationPage() {
         await scanRegion(0, 0, targetWidth, targetHeight);
       }
 
-      if (!bestCandidate || bestConfidence < MIN_UPLOAD_PREVIEW_CONFIDENCE) {
-        setFormError("No se pudo detectar un numero claro. Prueba otra imagen o reescanea.");
+      const estimatedEffectiveness = Math.round(bestConfidence * 0.78 + bestQuality * 0.22);
+
+      if (!bestCandidate || estimatedEffectiveness < MIN_UPLOAD_PREVIEW_CONFIDENCE) {
+        setFormError("Imagen borrosa. Intenta escanearlo de forma manual.");
         return;
       }
 
@@ -264,7 +266,7 @@ export function DenominationPage() {
         source: "scan_upload"
       });
     } catch {
-      setFormError("Fallo al escanear imagen. Intenta nuevamente.");
+      setFormError("Imagen borrosa. Intenta escanearlo de forma manual.");
     } finally {
       window.URL.revokeObjectURL(imageUrl);
       setIsUploadingScan(false);
@@ -468,8 +470,7 @@ export function DenominationPage() {
               X
             </button>
             <h3 className="serial-result-title">Lectura super turbo completada</h3>
-            <p className="serial-result-text">{`Tu numero es "${scanPreview.serial}" - B`}</p>
-            <p className="serial-result-text serial-result-text--subtle">{`Porcentaje veridico estimado: ${scanEstimatedSuccess}%`}</p>
+            <p className="serial-result-text">{`Tu serie "${scanPreview.serial}" - B tiene un ${scanEstimatedSuccess}% de efectividad.`}</p>
             <div className="serial-result-actions">
               <button type="button" className="serial-result-action serial-result-action--ghost" onClick={handleRescanFromPreview}>
                 Escanear de nuevo?
