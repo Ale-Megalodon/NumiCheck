@@ -705,6 +705,13 @@ body {
   border-radius: 14px;
 }
 
+.scanner-snap-flash {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.7);
+  animation: scanner-flash 0.12s ease-out forwards;
+}
+
 .scanner-status {
   margin: 0;
   color: var(--brand-primary);
@@ -768,8 +775,8 @@ body {
 }
 
 .scanner-actions-row {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.55rem;
 }
 
@@ -785,10 +792,44 @@ body {
   cursor: pointer;
 }
 
+.scanner-secondary--ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #6f848e;
+  cursor: default;
+}
+
 .scanner-secondary--active {
   border-color: #2a9d8f;
   background: #d8f0eb;
   color: #1f544d;
+}
+
+.scanner-scan-primary {
+  grid-column: 1 / -1;
+  border: none;
+  border-radius: 12px;
+  min-height: 50px;
+  padding: 0.7rem 1rem;
+  background: #2a9d8f;
+  color: #ffffff;
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 8px 16px rgba(42, 157, 143, 0.28);
+}
+
+.scanner-scan-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.scanner-status-stack {
+  min-height: 108px;
+  display: grid;
+  gap: 0.2rem;
 }
 
 .scanner-canvas-hidden {
@@ -947,6 +988,11 @@ body {
 .serial-result-card--legal {
   background: #dbf3ee;
   border-color: #9fd8ce;
+}
+
+.serial-result-card--scan {
+  background: #e8f2f5;
+  border-color: #bfd6df;
 }
 
 .serial-result-close {
@@ -1219,6 +1265,16 @@ body {
   }
 }
 
+@keyframes scanner-flash {
+  0% {
+    opacity: 0.92;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .brand-i-dot {
     animation: none;
@@ -1259,6 +1315,10 @@ body {
 
   .manual-submit {
     max-width: none;
+  }
+
+  .scanner-actions-row {
+    grid-template-columns: 1fr;
   }
 }
 

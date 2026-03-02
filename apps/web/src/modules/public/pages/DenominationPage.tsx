@@ -45,6 +45,7 @@ export function DenominationPage() {
   const selected = BANKNOTE_OPTIONS.find((item) => item.denomination === denomination);
   const [showManualForm, setShowManualForm] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [scanPreviewSerial, setScanPreviewSerial] = useState<string | null>(null);
   const [serialDigits, setSerialDigits] = useState("");
   const [seriesLetter, setSeriesLetter] = useState("B");
   const [formError, setFormError] = useState("");
@@ -171,13 +172,9 @@ export function DenominationPage() {
                   digitBounds={digitBounds}
                   onDetected={(digits) => {
                     setShowScanner(false);
-                    resolveSerial(digits);
+                    setScanPreviewSerial(digits);
                   }}
                   onClose={() => setShowScanner(false)}
-                  onManualFallback={() => {
-                    setShowScanner(false);
-                    setShowManualForm(true);
-                  }}
                 />
               ) : null}
 
@@ -253,6 +250,18 @@ export function DenominationPage() {
                 </p>
               </>
             )}
+          </article>
+        </div>
+      ) : null}
+
+      {scanPreviewSerial ? (
+        <div className="serial-result-overlay" role="dialog" aria-modal="true">
+          <article className="serial-result-card serial-result-card--scan">
+            <button type="button" className="serial-result-close" onClick={() => setScanPreviewSerial(null)}>
+              X
+            </button>
+            <h3 className="serial-result-title">Lectura completada</h3>
+            <p className="serial-result-text">{`Tu numero de serie es "${scanPreviewSerial}" - B`}</p>
           </article>
         </div>
       ) : null}

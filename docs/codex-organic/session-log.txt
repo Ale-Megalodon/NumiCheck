@@ -256,3 +256,17 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
 - Telemetria de escaneo expone lectura global y reset para soporte de calibracion.
 - Se agrega playbook de tuning en docs/codex-organic/scan-tuning-playbook.txt.
 - Build web validado correctamente.
+[2026-03-02 | Escaner UX refinado segun feedback]
+- Escaner cambia de lectura continua a flujo por accion principal:
+  - nuevo boton principal "Escanear" (captura unica + OCR inmediato).
+- El escaneo ahora devuelve resultado neutro (sin verificacion):
+  - "Tu numero de serie es \"X\" - B".
+- Se elimina en panel de escaner los botones que confundian al usuario:
+  - "Copiar diagnostico"
+  - "Ingresar manualmente"
+- Se renombra accion secundaria a "Reiniciar escaneo".
+- Se mantiene y mejora linterna funcional (cuando el dispositivo lo soporta).
+- Se estabiliza layout de acciones para que no se muevan con cambios de texto.
+- Se agrega efecto visual de captura (flash breve) al pulsar "Escanear".
+- Se mantiene guia de enfoque de camara de primera vez.
+- Build web validado correctamente.
