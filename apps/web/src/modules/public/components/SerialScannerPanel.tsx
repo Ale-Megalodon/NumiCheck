@@ -57,41 +57,38 @@ type OcrSizeProfile = {
   maxDigits: number;
 };
 
-type GeometricPreset = "none" | "tilt_left" | "tilt_right" | "fold_flatten";
-
 const GUIDE_KEY = "numicheck_scan_guide_seen_v1";
 const QUALITY_SAMPLE_WIDTH = 148;
 const QUALITY_SAMPLE_HEIGHT = 44;
 const MIN_CONFIDENCE = 12;
 const SNAP_FLASH_MS = 90;
-const SUPER_TURBO_PREVIEW_MIN_CONFIDENCE = 18;
-const SUPER_TURBO_MIN_EFFECTIVENESS = 46;
-const TURBO_SECONDARY_WINDOW_MIN_MS = 380;
-const TURBO_SECONDARY_WINDOW_MAX_MS = 1350;
-const TURBO_SCAN_TOTAL_MIN_MS = 900;
-const TURBO_SCAN_TOTAL_MAX_MS = 2600;
-const MIN_QUALITY_TO_ATTEMPT_OCR = 14;
-const SCANNER_ENGINE_VERSION = "Turbo v5";
-const PRECAPTURE_WARMUP_FRAMES = 3;
-const PRECAPTURE_FRAME_DELAY_MS = 38;
-const BURST_CAPTURE_ATTEMPTS = 3;
-const PASS_TWO_CAPTURE_ATTEMPTS = 2;
+const SUPER_TURBO_PREVIEW_MIN_CONFIDENCE = 14;
+const SUPER_TURBO_MIN_EFFECTIVENESS = 34;
+const TURBO_SECONDARY_WINDOW_MIN_MS = 180;
+const TURBO_SECONDARY_WINDOW_MAX_MS = 520;
+const TURBO_SCAN_TOTAL_MIN_MS = 520;
+const TURBO_SCAN_TOTAL_MAX_MS = 1400;
+const MIN_QUALITY_TO_ATTEMPT_OCR = 8;
+const SCANNER_ENGINE_VERSION = "Turbo v6 Speed";
+const PRECAPTURE_WARMUP_FRAMES = 1;
+const PRECAPTURE_FRAME_DELAY_MS = 18;
+const BURST_CAPTURE_ATTEMPTS = 2;
+const PASS_TWO_CAPTURE_ATTEMPTS = 1;
 const OCR_QUALITY_CONFIDENCE_BOOST_FACTOR = 0.12;
 const OCR_FULL_LENGTH_BONUS = 10;
 const OCR_ALMOST_FULL_LENGTH_BONUS = 6;
 const OCR_CANDIDATE_LIMIT = 5;
-const VOTE_ACCEPT_MIN_HITS = 2;
-const FALLBACK_FINAL_PASSES = 2;
-const AUTO_CAPTURE_SAMPLE_INTERVAL_MS = 180;
-const AUTO_CAPTURE_MIN_QUALITY = 64;
-const AUTO_CAPTURE_MAX_MOTION = 18;
-const AUTO_CAPTURE_MIN_BRIGHTNESS = 58;
-const AUTO_CAPTURE_MAX_BRIGHTNESS = 228;
-const AUTO_CAPTURE_STABLE_FRAMES = 2;
-const AUTO_CAPTURE_COOLDOWN_MS = 1450;
+const VOTE_ACCEPT_MIN_HITS = 1;
+const FALLBACK_FINAL_PASSES = 1;
+const AUTO_CAPTURE_SAMPLE_INTERVAL_MS = 120;
+const AUTO_CAPTURE_MIN_QUALITY = 50;
+const AUTO_CAPTURE_MAX_MOTION = 26;
+const AUTO_CAPTURE_MIN_BRIGHTNESS = 45;
+const AUTO_CAPTURE_MAX_BRIGHTNESS = 238;
+const AUTO_CAPTURE_STABLE_FRAMES = 1;
+const AUTO_CAPTURE_COOLDOWN_MS = 850;
 const ADAPTIVE_DELAY_MIN_MS = 16;
-const ADAPTIVE_DELAY_MAX_MS = 82;
-const FALLBACK_GEOMETRIC_PRESETS: GeometricPreset[] = ["none", "fold_flatten", "tilt_left", "tilt_right"];
+const ADAPTIVE_DELAY_MAX_MS = 54;
 const PRIMARY_ZONE_BY_DENOMINATION: Record<ScannerDenomination, string> = {
   "10": "Zona superior",
   "20": "Zona superior",
@@ -101,25 +98,25 @@ const PRIMARY_ZONE_BY_DENOMINATION: Record<ScannerDenomination, string> = {
 function getTierScale(tier: DeviceTier, mode: "quick" | "deep") {
   if (mode === "quick") {
     if (tier === "high") {
-      return 0.52;
+      return 0.5;
     }
 
     if (tier === "low") {
-      return 0.64;
+      return 0.58;
     }
 
-    return 0.58;
+    return 0.54;
   }
 
   if (tier === "high") {
-    return 0.78;
+    return 0.68;
   }
 
   if (tier === "low") {
-    return 0.9;
+    return 0.8;
   }
 
-  return 0.84;
+  return 0.74;
 }
 
 function getOcrTargetSize(
@@ -132,15 +129,15 @@ function getOcrTargetSize(
   const scale = getTierScale(profile.tier, mode) * lengthAdjust;
 
   if (mode === "quick") {
-    const width = Math.max(220, Math.min(420, Math.round(regionWidth * scale)));
+    const width = Math.max(210, Math.min(360, Math.round(regionWidth * scale)));
     const ratio = width / Math.max(1, regionWidth);
-    const height = Math.max(62, Math.min(136, Math.round(regionHeight * ratio)));
+    const height = Math.max(56, Math.min(112, Math.round(regionHeight * ratio)));
     return { width, height };
   }
 
-  const width = Math.max(340, Math.min(680, Math.round(regionWidth * scale)));
+  const width = Math.max(280, Math.min(520, Math.round(regionWidth * scale)));
   const ratio = width / Math.max(1, regionWidth);
-  const height = Math.max(88, Math.min(220, Math.round(regionHeight * ratio)));
+  const height = Math.max(78, Math.min(170, Math.round(regionHeight * ratio)));
   return { width, height };
 }
 
@@ -346,33 +343,13 @@ function computeOtsuThresholdFromRgba(data: Uint8ClampedArray, sampleStride = 2)
   return threshold;
 }
 
-function applyGeometricPreset(context: CanvasRenderingContext2D, preset: GeometricPreset) {
-  if (preset === "tilt_left") {
-    context.rotate((-1.45 * Math.PI) / 180);
-    context.transform(1, 0, -0.04, 1, 0, 0);
-    return;
-  }
-
-  if (preset === "tilt_right") {
-    context.rotate((1.45 * Math.PI) / 180);
-    context.transform(1, 0, 0.04, 1, 0, 0);
-    return;
-  }
-
-  if (preset === "fold_flatten") {
-    context.transform(1, -0.012, 0, 1, 0, 0);
-    context.scale(1.04, 0.93);
-  }
-}
-
 function drawRegionForOcr(
   frameCanvas: HTMLCanvasElement,
   targetCanvas: HTMLCanvasElement,
   region: { left: number; top: number; width: number; height: number },
   mode: "quick" | "deep",
   sizeProfile: OcrSizeProfile,
-  applyAdaptiveThreshold: boolean,
-  geometricPreset: GeometricPreset = "none"
+  applyAdaptiveThreshold: boolean
 ) {
   const context = targetCanvas.getContext("2d", { willReadFrequently: true });
   if (!context) {
@@ -384,43 +361,21 @@ function drawRegionForOcr(
   targetCanvas.height = size.height;
 
   context.imageSmoothingEnabled = mode === "deep";
-  const preprocessFilter =
-    mode === "quick" ? "grayscale(1) contrast(1.6) brightness(1.05)" : "grayscale(1) contrast(2.05) brightness(1.08)";
-  context.save();
-  context.clearRect(0, 0, size.width, size.height);
-  context.filter = preprocessFilter;
-
-  if (mode === "deep" && geometricPreset !== "none") {
-    context.translate(size.width / 2, size.height / 2);
-    applyGeometricPreset(context, geometricPreset);
-    context.drawImage(
-      frameCanvas,
-      region.left,
-      region.top,
-      region.width,
-      region.height,
-      -size.width / 2,
-      -size.height / 2,
-      size.width,
-      size.height
-    );
-  } else {
-    context.drawImage(
-      frameCanvas,
-      region.left,
-      region.top,
-      region.width,
-      region.height,
-      0,
-      0,
-      size.width,
-      size.height
-    );
-  }
-  context.restore();
+  context.filter = mode === "quick" ? "grayscale(1) contrast(1.6) brightness(1.05)" : "grayscale(1) contrast(2.05) brightness(1.08)";
+  context.drawImage(
+    frameCanvas,
+    region.left,
+    region.top,
+    region.width,
+    region.height,
+    0,
+    0,
+    size.width,
+    size.height
+  );
   context.filter = "none";
 
-  if (mode === "deep" && (applyAdaptiveThreshold || geometricPreset !== "none")) {
+  if (mode === "deep" && applyAdaptiveThreshold) {
     const image = context.getImageData(0, 0, size.width, size.height);
     const data = image.data;
     const threshold = computeOtsuThresholdFromRgba(data, sizeProfile.tier === "high" ? 3 : 2);
@@ -724,7 +679,7 @@ export function SerialScannerPanel({
             warmupContext.fillText("00000000 B", 12, 48);
           }
 
-          await recognizeWithTimeout(workerRef.current, warmupCanvas, 1200);
+          await recognizeWithTimeout(workerRef.current, warmupCanvas, 480);
         }
 
         const baseRegions = buildScanRegions(denomination, video.videoWidth, video.videoHeight);
@@ -893,24 +848,24 @@ export function SerialScannerPanel({
           : buildScanRegions(denomination, video.videoWidth, video.videoHeight);
 
       const quickRegions = getQuickRegionsForDenomination(denomination, regions);
-      const quickAcceptConfidence = Math.max(MIN_CONFIDENCE, adaptiveThresholds.fastAcceptConfidence - 10);
+      const quickAcceptConfidence = Math.max(MIN_CONFIDENCE, adaptiveThresholds.fastAcceptConfidence - 22);
       const immediateAcceptConfidence = Math.max(
         quickAcceptConfidence,
-        adaptiveThresholds.immediateAcceptConfidence - 8
+        adaptiveThresholds.immediateAcceptConfidence - 16
       );
-      const voteAcceptConfidence = Math.max(MIN_CONFIDENCE + 8, quickAcceptConfidence - 8);
-      const qualityAcceptFloor = Math.max(42, adaptiveThresholds.qualityAcceptFloor - 16);
+      const voteAcceptConfidence = Math.max(MIN_CONFIDENCE + 4, quickAcceptConfidence - 12);
+      const qualityAcceptFloor = Math.max(32, adaptiveThresholds.qualityAcceptFloor - 24);
       const secondaryWindowMs = Math.min(
         TURBO_SECONDARY_WINDOW_MAX_MS,
-        Math.max(TURBO_SECONDARY_WINDOW_MIN_MS, deviceProfile.baseDelayMs + deviceProfile.readHitDelayMs + 540)
+        Math.max(TURBO_SECONDARY_WINDOW_MIN_MS, deviceProfile.baseDelayMs + deviceProfile.readHitDelayMs + 240)
       );
       const maxScanMs = Math.min(
         TURBO_SCAN_TOTAL_MAX_MS,
-        Math.max(TURBO_SCAN_TOTAL_MIN_MS, deviceProfile.baseDelayMs + deviceProfile.maxOcrMs + 880)
+        Math.max(TURBO_SCAN_TOTAL_MIN_MS, deviceProfile.baseDelayMs + deviceProfile.maxOcrMs + 480)
       );
-      const quickOcrTimeoutMs = clamp(deviceProfile.maxOcrMs + 140, 560, 1050);
-      const deepOcrTimeoutMs = clamp(deviceProfile.maxOcrMs + 360, 900, 1550);
-      const horizontalOffsets = [0, -0.018, 0.018, -0.032, 0.032];
+      const quickOcrTimeoutMs = clamp(deviceProfile.maxOcrMs + 40, 340, 760);
+      const deepOcrTimeoutMs = clamp(deviceProfile.maxOcrMs + 180, 560, 980);
+      const horizontalOffsets = [0, -0.012, 0.012];
       const ocrSizeProfile: OcrSizeProfile = {
         tier: deviceProfile.tier,
         maxDigits: digitBounds.maxDigits
@@ -946,8 +901,7 @@ export function SerialScannerPanel({
         regionIndex: number,
         burstIndex: number,
         mode: "quick" | "deep",
-        passIndex: number,
-        geometricPreset: GeometricPreset = "none"
+        passIndex: number
       ) => {
         if (isScanRunCancelled(runId)) {
           cancelledByUser = true;
@@ -996,8 +950,7 @@ export function SerialScannerPanel({
           shifted,
           mode,
           ocrSizeProfile,
-          mode === "deep" ? quality.score <= 86 : false,
-          geometricPreset
+          mode === "deep" ? quality.score <= 86 : false
         );
 
         const ocrStart = performance.now();
@@ -1125,15 +1078,6 @@ export function SerialScannerPanel({
             acceptedInFrame = await tryRegionRead(secondaryRegion, 1, burstIndex, mode, passIndex);
           }
 
-          if (
-            !acceptedInFrame &&
-            mode === "quick" &&
-            primaryRegion &&
-            bestConfidenceAfterPrimary < quickAcceptConfidence - 6
-          ) {
-            acceptedInFrame = await tryRegionRead(primaryRegion, 0, burstIndex, "deep", passIndex);
-          }
-
           if (acceptedInFrame) {
             return true;
           }
@@ -1171,6 +1115,10 @@ export function SerialScannerPanel({
       const acceptedInPassOne = await runPass(1, "quick", BURST_CAPTURE_ATTEMPTS);
       let acceptedOverall = acceptedInPassOne;
 
+      if (!acceptedOverall && best && getCandidateConfidence(best) >= MIN_CONFIDENCE + 2) {
+        acceptedOverall = true;
+      }
+
       if (!acceptedOverall && performance.now() - scanStartedAt < maxScanMs) {
         setStatusText("Super turbo: pase 2 automatico...");
         acceptedOverall = await runPass(2, "deep", PASS_TWO_CAPTURE_ATTEMPTS);
@@ -1193,32 +1141,7 @@ export function SerialScannerPanel({
             return;
           }
           frameContext.drawImage(video, 0, 0, frameCanvas.width, frameCanvas.height);
-          const rescuePresets =
-            fallbackIndex === 0 ? (["none"] as GeometricPreset[]) : FALLBACK_GEOMETRIC_PRESETS.slice(1);
-          let rescued = false;
-
-          for (let presetIndex = 0; presetIndex < rescuePresets.length; presetIndex += 1) {
-            const preset = rescuePresets[presetIndex] ?? "none";
-            const rescuedWithPreset = await tryRegionRead(
-              fallbackRegion,
-              2,
-              fallbackIndex + presetIndex,
-              "deep",
-              2,
-              preset
-            );
-
-            if (rescuedWithPreset) {
-              rescued = true;
-              break;
-            }
-
-            if (isScanRunCancelled(runId)) {
-              cancelledByUser = true;
-              return;
-            }
-          }
-
+          const rescued = await tryRegionRead(fallbackRegion, 2, fallbackIndex, "deep", 2);
           if (rescued) {
             acceptedOverall = true;
             break;
