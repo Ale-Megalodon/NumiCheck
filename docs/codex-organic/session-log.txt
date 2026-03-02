@@ -288,3 +288,22 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
 - Se mantiene deep pass como respaldo, pero se activa menos veces en capturas buenas.
 - Resultado: menor tiempo promedio de lectura en clics exitosos.
 - Build web validado correctamente.
+[2026-03-02 | Modo Turbo global | aceptacion 70 y primer intento]
+- Escaner ajustado para modo hiper-rapido general en todos los dispositivos.
+- Aceptacion temprana configurada a 70% de confianza OCR para lanzar lectura.
+- Quick pass mas liviano: ROI y resoluciones reducidas para menor latencia por captura.
+- Se permite intentar OCR incluso con calidad media-baja (evita perder primer intento por filtro estricto).
+- Deep pass solo como respaldo cuando la confianza sigue baja.
+- Perfiles base low/mid/high ajustados a defaults mas agresivos (menos delays, umbrales mas rapidos).
+- Adaptacion por telemetria suavizada para no volver lento el escaner despues de ruido.
+- Build web validado correctamente.
+[2026-03-02 | Flujo escaneo ultra rapido | decision post-lectura]
+- Se cambia el flujo post-OCR para reducir friccion: despues de leer serial, se muestra modal de decision.
+- Nuevo modal de lectura incluye:
+  - serial detectado
+  - probabilidad estimada de acierto
+  - boton "Escanear de nuevo"
+  - boton "Verificar ya!"
+- "Verificar ya!" reutiliza la logica oficial existente y dispara resultado final verde/rojo.
+- El escaner ahora reporta serial, confianza y calidad al contenedor de pagina.
+- Build web validado correctamente.

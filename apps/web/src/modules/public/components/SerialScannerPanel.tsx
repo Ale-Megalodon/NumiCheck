@@ -20,7 +20,7 @@ type SerialScannerPanelProps = {
   denomination: ScannerDenomination;
   denominationLabel: string;
   digitBounds: OcrDigitBounds;
-  onDetected: (serialDigits: string) => void;
+  onDetected: (result: { serialDigits: string; confidence: number; quality: number }) => void;
   onClose: () => void;
 };
 
@@ -34,10 +34,14 @@ type Candidate = {
 };
 
 const GUIDE_KEY = "numicheck_scan_guide_seen_v1";
-const QUALITY_SAMPLE_WIDTH = 176;
-const QUALITY_SAMPLE_HEIGHT = 52;
-const MIN_CONFIDENCE = 34;
-const SNAP_FLASH_MS = 120;
+const QUALITY_SAMPLE_WIDTH = 148;
+const QUALITY_SAMPLE_HEIGHT = 44;
+const MIN_CONFIDENCE = 30;
+const SNAP_FLASH_MS = 90;
+const TURBO_ACCEPT_CONFIDENCE = 70;
+const TURBO_IMMEDIATE_CONFIDENCE = 74;
+const TURBO_DEEP_RECHECK_CONFIDENCE = 68;
+const MIN_QUALITY_TO_ATTEMPT_OCR = 32;
 const PRIMARY_ZONE_BY_DENOMINATION: Record<ScannerDenomination, string> = {
   "10": "Zona superior",
   "20": "Zona superior",
@@ -46,15 +50,15 @@ const PRIMARY_ZONE_BY_DENOMINATION: Record<ScannerDenomination, string> = {
 
 function getOcrTargetSize(regionWidth: number, regionHeight: number, mode: "quick" | "deep") {
   if (mode === "quick") {
-    const width = Math.max(220, Math.min(420, Math.round(regionWidth * 0.42)));
+    const width = Math.max(180, Math.min(340, Math.round(regionWidth * 0.34)));
     const ratio = width / Math.max(1, regionWidth);
-    const height = Math.max(58, Math.min(150, Math.round(regionHeight * ratio)));
+    const height = Math.max(52, Math.min(124, Math.round(regionHeight * ratio)));
     return { width, height };
   }
 
-  const width = Math.max(300, Math.min(620, Math.round(regionWidth * 0.58)));
+  const width = Math.max(270, Math.min(520, Math.round(regionWidth * 0.5)));
   const ratio = width / Math.max(1, regionWidth);
-  const height = Math.max(70, Math.min(210, Math.round(regionHeight * ratio)));
+  const height = Math.max(64, Math.min(180, Math.round(regionHeight * ratio)));
   return { width, height };
 }
 
@@ -390,8 +394,9 @@ export function SerialScannerPanel({
           : buildScanRegions(denomination, video.videoWidth, video.videoHeight);
 
       const quickRegions = getQuickRegionsForDenomination(denomination, regions);
-      const quickAcceptConfidence = Math.max(MIN_CONFIDENCE + 8, adaptiveThresholds.fastAcceptConfidence - 8);
-      const deepAcceptConfidence = Math.max(MIN_CONFIDENCE + 3, adaptiveThresholds.fastAcceptConfidence - 3);
+      const quickAcceptConfidence = Math.max(MIN_CONFIDENCE, TURBO_ACCEPT_CONFIDENCE);
+      const immediateAcceptConfidence = Math.max(quickAcceptConfidence, TURBO_IMMEDIATE_CONFIDENCE);
+      const deepAcceptConfidence = Math.max(MIN_CONFIDENCE, TURBO_DEEP_RECHECK_CONFIDENCE);
       const tryQuickRegion = async (region: (typeof quickRegions)[number], regionIndex: number) => {
         setZoneLabel(region.label);
         observedZone = region.label;
@@ -417,7 +422,7 @@ export function SerialScannerPanel({
         setQualityScore(quality.score);
         setQualityLevel(quality.level);
 
-        if (!quality.isGood) {
+        if (!quality.isGood && quality.score < MIN_QUALITY_TO_ATTEMPT_OCR) {
           bestHint = `${region.label}: ${quality.hint}`;
           return false;
         }
@@ -455,10 +460,10 @@ export function SerialScannerPanel({
           best = current;
         }
 
-        const quickAccept = confidence >= quickAcceptConfidence && quality.score >= adaptiveThresholds.qualityAcceptFloor - 3;
+        const quickAccept = confidence >= quickAcceptConfidence;
         const immediateAccept =
-          confidence >= adaptiveThresholds.immediateAcceptConfidence - 2 &&
-          quality.score >= adaptiveThresholds.qualityAcceptFloor;
+          confidence >= immediateAcceptConfidence &&
+          quality.score >= adaptiveThresholds.qualityAcceptFloor - 10;
 
         return quickAccept || immediateAccept;
       };
@@ -519,7 +524,7 @@ export function SerialScannerPanel({
         }
       }
 
-      if (best) {
+      if (best && best.confidence >= quickAcceptConfidence) {
         setLastConfidence(best.confidence);
         setQualityScore(best.quality);
         setZoneLabel(best.zoneLabel);
@@ -538,18 +543,30 @@ export function SerialScannerPanel({
           navigator.vibrate(18);
         }
 
-        onDetected(best.serial);
+        onDetected({
+          serialDigits: best.serial,
+          confidence: best.confidence,
+          quality: best.quality
+        });
       } else {
-        setLastConfidence(observedConfidence);
+        const finalConfidence = best ? Math.max(observedConfidence, best.confidence) : observedConfidence;
+        const finalQuality = best ? Math.max(observedQuality, best.quality) : observedQuality;
+        const finalZone = best?.zoneLabel ?? observedZone;
+
+        setLastConfidence(finalConfidence);
         setScanStatus("ready");
-        setStatusText(bestHint);
+        setStatusText(
+          best
+            ? `Lectura inestable (${best.confidence}%). Reintenta para confirmar.`
+            : bestHint
+        );
 
         recordScanSample(denomination, {
           ocrMs: ocrCalls > 0 ? Math.round(totalOcrMs / ocrCalls) : Math.min(deviceProfile.maxOcrMs, 680),
-          quality: observedQuality,
-          confidence: observedConfidence,
+          quality: finalQuality,
+          confidence: finalConfidence,
           success: false,
-          zoneLabel: observedZone
+          zoneLabel: finalZone
         });
       }
     } catch {

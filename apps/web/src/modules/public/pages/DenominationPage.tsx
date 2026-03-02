@@ -18,6 +18,12 @@ type ModalOutcome = {
   serial: string;
 };
 
+type ScanPreview = {
+  serial: string;
+  confidence: number;
+  quality: number;
+};
+
 function CameraMiniIcon() {
   return (
     <svg
@@ -45,7 +51,7 @@ export function DenominationPage() {
   const selected = BANKNOTE_OPTIONS.find((item) => item.denomination === denomination);
   const [showManualForm, setShowManualForm] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
-  const [scanPreviewSerial, setScanPreviewSerial] = useState<string | null>(null);
+  const [scanPreview, setScanPreview] = useState<ScanPreview | null>(null);
   const [serialDigits, setSerialDigits] = useState("");
   const [seriesLetter, setSeriesLetter] = useState("B");
   const [formError, setFormError] = useState("");
@@ -99,8 +105,32 @@ export function DenominationPage() {
   const handleScanClick = () => {
     setFormError("");
     setShowManualForm(false);
+    setScanPreview(null);
     setShowScanner(true);
   };
+
+  const handleRescanFromPreview = () => {
+    setScanPreview(null);
+    setShowScanner(true);
+  };
+
+  const handleVerifyScannedNow = () => {
+    if (!scanPreview) {
+      return;
+    }
+
+    setScanPreview(null);
+    resolveSerial(scanPreview.serial);
+  };
+
+  const scanEstimatedSuccess = useMemo(() => {
+    if (!scanPreview) {
+      return 0;
+    }
+
+    const weighted = Math.round(scanPreview.confidence * 0.78 + scanPreview.quality * 0.22);
+    return Math.max(55, Math.min(99, weighted));
+  }, [scanPreview]);
 
   const handleManualSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -170,9 +200,13 @@ export function DenominationPage() {
                   denomination={denominationValue}
                   denominationLabel={selected.label}
                   digitBounds={digitBounds}
-                  onDetected={(digits) => {
+                  onDetected={(result) => {
                     setShowScanner(false);
-                    setScanPreviewSerial(digits);
+                    setScanPreview({
+                      serial: result.serialDigits,
+                      confidence: result.confidence,
+                      quality: result.quality
+                    });
                   }}
                   onClose={() => setShowScanner(false)}
                 />
@@ -254,14 +288,23 @@ export function DenominationPage() {
         </div>
       ) : null}
 
-      {scanPreviewSerial ? (
+      {scanPreview ? (
         <div className="serial-result-overlay" role="dialog" aria-modal="true">
           <article className="serial-result-card serial-result-card--scan">
-            <button type="button" className="serial-result-close" onClick={() => setScanPreviewSerial(null)}>
+            <button type="button" className="serial-result-close" onClick={() => setScanPreview(null)}>
               X
             </button>
             <h3 className="serial-result-title">Lectura completada</h3>
-            <p className="serial-result-text">{`Tu numero de serie es "${scanPreviewSerial}" - B`}</p>
+            <p className="serial-result-text">{`Tu numero de serie es "${scanPreview.serial}" - B`}</p>
+            <p className="serial-result-text serial-result-text--subtle">{`Probabilidad estimada de acierto: ${scanEstimatedSuccess}%`}</p>
+            <div className="serial-result-actions">
+              <button type="button" className="serial-result-action serial-result-action--ghost" onClick={handleRescanFromPreview}>
+                Escanear de nuevo
+              </button>
+              <button type="button" className="serial-result-action serial-result-action--verify" onClick={handleVerifyScannedNow}>
+                Verificar ya!
+              </button>
+            </div>
           </article>
         </div>
       ) : null}

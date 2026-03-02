@@ -29,39 +29,39 @@ export type DeviceProfileResolution = {
 const PROFILES: Record<DeviceTier, DeviceProfile> = {
   low: {
     tier: "low",
-    baseDelayMs: 260,
-    badFrameDelayMs: 190,
-    ocrMissDelayMs: 220,
-    readHitDelayMs: 110,
-    requiredHits: 2,
-    fastAcceptConfidence: 84,
-    immediateAcceptConfidence: 90,
-    qualityAcceptFloor: 70,
-    maxOcrMs: 980
+    baseDelayMs: 170,
+    badFrameDelayMs: 120,
+    ocrMissDelayMs: 140,
+    readHitDelayMs: 70,
+    requiredHits: 1,
+    fastAcceptConfidence: 76,
+    immediateAcceptConfidence: 82,
+    qualityAcceptFloor: 60,
+    maxOcrMs: 760
   },
   mid: {
     tier: "mid",
-    baseDelayMs: 220,
-    badFrameDelayMs: 160,
-    ocrMissDelayMs: 180,
-    readHitDelayMs: 90,
-    requiredHits: 2,
-    fastAcceptConfidence: 82,
-    immediateAcceptConfidence: 88,
-    qualityAcceptFloor: 68,
-    maxOcrMs: 900
+    baseDelayMs: 150,
+    badFrameDelayMs: 110,
+    ocrMissDelayMs: 125,
+    readHitDelayMs: 62,
+    requiredHits: 1,
+    fastAcceptConfidence: 74,
+    immediateAcceptConfidence: 80,
+    qualityAcceptFloor: 58,
+    maxOcrMs: 700
   },
   high: {
     tier: "high",
-    baseDelayMs: 180,
-    badFrameDelayMs: 140,
-    ocrMissDelayMs: 150,
-    readHitDelayMs: 75,
+    baseDelayMs: 130,
+    badFrameDelayMs: 95,
+    ocrMissDelayMs: 105,
+    readHitDelayMs: 50,
     requiredHits: 1,
-    fastAcceptConfidence: 78,
-    immediateAcceptConfidence: 85,
-    qualityAcceptFloor: 64,
-    maxOcrMs: 780
+    fastAcceptConfidence: 72,
+    immediateAcceptConfidence: 78,
+    qualityAcceptFloor: 56,
+    maxOcrMs: 620
   }
 };
 
@@ -112,9 +112,9 @@ function sanitizeProfile(profile: DeviceProfile): DeviceProfile {
     ocrMissDelayMs: clamp(Math.round(profile.ocrMissDelayMs), 80, 600),
     readHitDelayMs: clamp(Math.round(profile.readHitDelayMs), 40, 320),
     requiredHits: clamp(Math.round(profile.requiredHits), 1, 3),
-    fastAcceptConfidence: clamp(Math.round(profile.fastAcceptConfidence), 68, 95),
-    immediateAcceptConfidence: clamp(Math.round(profile.immediateAcceptConfidence), 72, 98),
-    qualityAcceptFloor: clamp(Math.round(profile.qualityAcceptFloor), 54, 90),
+    fastAcceptConfidence: clamp(Math.round(profile.fastAcceptConfidence), 64, 95),
+    immediateAcceptConfidence: clamp(Math.round(profile.immediateAcceptConfidence), 68, 98),
+    qualityAcceptFloor: clamp(Math.round(profile.qualityAcceptFloor), 48, 90),
     maxOcrMs: clamp(Math.round(profile.maxOcrMs), 320, 1600)
   };
 }

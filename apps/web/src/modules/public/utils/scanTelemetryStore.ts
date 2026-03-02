@@ -137,24 +137,24 @@ export function getAdaptiveThresholds(
   if (telemetry.successes >= 14) {
     if (telemetry.avgConfidence >= 73 && telemetry.avgOcrMs <= 520) {
       requiredHits = Math.max(1, requiredHits - 1);
-      fastAcceptConfidence -= 3;
-      immediateAcceptConfidence -= 2;
-      qualityAcceptFloor -= 2;
+      fastAcceptConfidence -= 4;
+      immediateAcceptConfidence -= 4;
+      qualityAcceptFloor -= 3;
     }
 
     if (telemetry.avgConfidence <= 57 || telemetry.avgQuality <= 52) {
       requiredHits = Math.min(3, requiredHits + 1);
-      fastAcceptConfidence += 3;
-      immediateAcceptConfidence += 3;
-      qualityAcceptFloor += 2;
+      fastAcceptConfidence += 1;
+      immediateAcceptConfidence += 1;
+      qualityAcceptFloor += 1;
     }
   }
 
   return {
     requiredHits: clamp(requiredHits, 1, 3),
-    fastAcceptConfidence: clamp(fastAcceptConfidence, 68, 95),
-    immediateAcceptConfidence: clamp(immediateAcceptConfidence, 72, 98),
-    qualityAcceptFloor: clamp(qualityAcceptFloor, 54, 85)
+    fastAcceptConfidence: clamp(fastAcceptConfidence, 64, 92),
+    immediateAcceptConfidence: clamp(immediateAcceptConfidence, 68, 95),
+    qualityAcceptFloor: clamp(qualityAcceptFloor, 48, 82)
   };
 }
 
