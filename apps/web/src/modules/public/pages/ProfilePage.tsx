@@ -11,7 +11,7 @@ import {
   type PublicProfile
 } from "../services/publicProfileStore";
 
-const EMOJI_CANDIDATES = Array.from({ length: 10 }, (_, index) => `/img/Flat_${index + 1}.jpg`);
+const EMOJI_CANDIDATES = Array.from({ length: 9 }, (_, index) => `/img/Flat_${index + 1}.jpg`);
 const MAX_NAME_LENGTH = 32;
 const MAX_TAG_LENGTH = 22;
 const MAX_TAGS = 8;
@@ -31,15 +31,22 @@ export function ProfilePage() {
   const [profile, setProfile] = useState<PublicProfile>(() => getPublicProfile(user?.uid, fallbackName));
   const [pendingTag, setPendingTag] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
+  const [emojiPanelOpen, setEmojiPanelOpen] = useState(false);
   const [emojiOptions, setEmojiOptions] = useState<string[]>([]);
-  const [emojiLoading, setEmojiLoading] = useState(true);
+  const [emojiLoading, setEmojiLoading] = useState(false);
+  const [emojiLoaded, setEmojiLoaded] = useState(false);
 
   useEffect(() => {
     setProfile(getPublicProfile(user?.uid, fallbackName));
   }, [fallbackName, user?.uid]);
 
   useEffect(() => {
+    if (!emojiPanelOpen || emojiLoaded) {
+      return;
+    }
+
     let mounted = true;
+    setEmojiLoading(true);
 
     const loadEmojis = async () => {
       const checks = await Promise.all(
@@ -60,6 +67,7 @@ export function ProfilePage() {
 
       const available = checks.filter((value): value is string => Boolean(value));
       setEmojiOptions(available);
+      setEmojiLoaded(true);
       setEmojiLoading(false);
     };
 
@@ -67,7 +75,7 @@ export function ProfilePage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [emojiLoaded, emojiPanelOpen]);
 
   useEffect(() => {
     if (!notice) {
@@ -265,30 +273,13 @@ export function ProfilePage() {
               </section>
 
               <section className="profile-emoji-section">
-                <h3>Panel de emojis</h3>
-                {emojiLoading ? (
-                  <div className="profile-emoji-skeleton skeleton" aria-hidden="true" />
-                ) : (
-                  <div className="profile-emoji-grid">
-                    {emojiOptions.map((emojiPath, index) => {
-                      const isSelected = profile.avatarType === "emoji" && profile.avatarValue === emojiPath;
-                      return (
-                        <button
-                          key={emojiPath}
-                          type="button"
-                          className={`profile-emoji-button ${isSelected ? "profile-emoji-button--selected" : ""}`}
-                          onClick={() => handlePickEmoji(emojiPath)}
-                          aria-label={`Emoji ${index + 1}`}
-                        >
-                          <img src={emojiPath} alt={`Emoji ${index + 1}`} loading="lazy" />
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-                {!emojiLoading && emojiOptions.length === 0 ? (
-                  <p className="profile-note">No se encontraron emojis en `img/`.</p>
-                ) : null}
+                <div className="profile-emoji-head">
+                  <h3>Panel de emojis</h3>
+                  <button type="button" className="menu-toggle" onClick={() => setEmojiPanelOpen(true)}>
+                    Emojis
+                  </button>
+                </div>
+                <p className="profile-note">Pulsa "Emojis" para abrir el panel sin afectar la velocidad inicial.</p>
               </section>
 
               <section className="profile-hashtag-section">
@@ -324,6 +315,50 @@ export function ProfilePage() {
           )}
         </section>
       </section>
+
+      {emojiPanelOpen ? (
+        <div className="profile-emoji-overlay" role="dialog" aria-modal="true">
+          <article className="profile-emoji-modal-card">
+            <header className="profile-emoji-modal-head">
+              <h3>Panel de emojis</h3>
+              <button
+                type="button"
+                className="scanner-close"
+                onClick={() => setEmojiPanelOpen(false)}
+                aria-label="Cerrar panel de emojis"
+              >
+                X
+              </button>
+            </header>
+
+            {emojiLoading ? (
+              <div className="profile-emoji-loading">
+                <div className="profile-emoji-skeleton skeleton" aria-hidden="true" />
+                <p className="profile-note">Cargando el mejor panel de emojis... wait!</p>
+              </div>
+            ) : emojiOptions.length > 0 ? (
+              <div className="profile-emoji-grid">
+                {emojiOptions.map((emojiPath, index) => {
+                  const isSelected = profile.avatarType === "emoji" && profile.avatarValue === emojiPath;
+                  return (
+                    <button
+                      key={emojiPath}
+                      type="button"
+                      className={`profile-emoji-button ${isSelected ? "profile-emoji-button--selected" : ""}`}
+                      onClick={() => handlePickEmoji(emojiPath)}
+                      aria-label={`Emoji ${index + 1}`}
+                    >
+                      <img src={emojiPath} alt={`Emoji ${index + 1}`} loading="lazy" />
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="profile-note">No se encontraron emojis en `apps/web/public/img/`.</p>
+            )}
+          </article>
+        </div>
+      ) : null}
     </main>
   );
 }

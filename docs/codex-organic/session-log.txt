@@ -414,3 +414,14 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
   - "Tu serie X - B tiene un Y% de efectividad"
   - botones: Escanear de nuevo / Verificar numero de serie
 - Build web validado correctamente.
+[2026-03-02 | Emoji panel on-demand + skeleton modal]
+- Perfil optimizado para rendimiento: panel de emojis ya no precarga al abrir la pagina.
+- Nuevo flujo:
+  - boton "Emojis" abre modal/pantalla de panel
+  - mientras carga: bloque skeleton + mensaje "Cargando el mejor panel de emojis... wait!"
+  - al terminar: muestra grilla de emojis disponible
+- Carga diferida de emojis:
+  - se ejecuta solo al abrir panel por primera vez
+  - despues queda cacheado en estado local para aperturas siguientes
+- Estilos nuevos para modal de emojis y soporte modo oscuro.
+- Build web validado correctamente.
