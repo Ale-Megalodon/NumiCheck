@@ -436,3 +436,7 @@ NUMICHECK - CODEX ORGANIC - SESSION LOG
   - preview solo si efectividad estimada >=70
   - si no alcanza: "Imagen borrosa. Intenta escanearlo de forma manual."
 - Build web validado correctamente.
+[2026-03-02 | Indicador visual version scanner]
+- Se agrega badge visible de version del motor en el panel de escaneo: "Turbo v3".
+- Se agrega estilo del badge en modo claro/oscuro para validacion rapida de despliegue.
+- Build web validado correctamente.

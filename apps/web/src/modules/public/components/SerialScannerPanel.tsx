@@ -619,7 +619,7 @@ export function SerialScannerPanel({
     <section className="scanner-panel" aria-label="Escaner de numero de serie">
       <header className="scanner-header">
         <div>
-          <h2>Escaner rapido</h2>
+          <h2>{`Escaner rapido - ${SCANNER_ENGINE_VERSION}`}</h2>
           <p>Detecta automaticamente serie B para {denominationLabel}</p>
         </div>
         <div className="scanner-header-actions">
