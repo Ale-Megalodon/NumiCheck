@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useAuth } from "../../../app/providers/AuthProvider";
 import { getSharedOcrWorker, subscribeOcrWarmup } from "../services/ocrWorkerStore";
 import {
@@ -14,8 +14,7 @@ import {
 } from "../utils/scanTelemetryStore";
 import {
   mergeDeviceProfileWithPatch,
-  resolveDeviceProfileForDenomination,
-  type DeviceTier
+  resolveDeviceProfileForDenomination
 } from "../utils/deviceProfile";
 import { buildScanRegions, type ScannerDenomination } from "../utils/scanRegionProfiles";
 import {
@@ -23,8 +22,88 @@ import {
   type OcrDigitBounds
 } from "../utils/serialOcr";
 import { useLatestRef } from "../../../shared/hooks/useLatestRef";
+import {
+  boostConfidenceFromQuality,
+  buildConsensusSerial,
+  chooseBestCandidateFromVotes,
+  computeOtsuThresholdFromRgba,
+  drawRegionForOcr,
+  fixAmbiguousDigits,
+  getAdaptiveBurstDelay,
+  getOcrTargetSize,
+  shiftRegion,
+  type Candidate,
+  type CandidateVote,
+  type OcrSizeProfile
+} from "./useScanEngine";
 
 type ScanStatus = "starting" | "ready" | "reading" | "error";
+type ScanButtonMode = "scan" | "retry";
+
+type ScanState = {
+  scanStatus: ScanStatus;
+  statusText: string;
+  errorText: string;
+  lastConfidence: number;
+  scanButtonMode: ScanButtonMode;
+  isScanning: boolean;
+  lastScanMs: number | null;
+};
+
+type ScanAction =
+  | { type: "SET_READY"; payload?: Partial<ScanState> }
+  | { type: "SET_SCANNING"; payload?: Partial<ScanState> }
+  | { type: "SET_ERROR"; payload?: Partial<ScanState> }
+  | { type: "SET_RESULT"; payload: Partial<ScanState> }
+  | { type: "RESET"; payload?: Partial<ScanState> };
+
+const initialScanState: ScanState = {
+  scanStatus: "starting",
+  statusText: "Preparando camara...",
+  errorText: "",
+  lastConfidence: 0,
+  scanButtonMode: "scan",
+  isScanning: false,
+  lastScanMs: null
+};
+
+function scanReducer(state: ScanState, action: ScanAction): ScanState {
+  switch (action.type) {
+    case "SET_READY":
+      return {
+        ...state,
+        scanStatus: "ready",
+        isScanning: false,
+        ...action.payload
+      };
+    case "SET_SCANNING":
+      return {
+        ...state,
+        scanStatus: "reading",
+        isScanning: true,
+        ...action.payload
+      };
+    case "SET_ERROR":
+      return {
+        ...state,
+        scanStatus: "error",
+        isScanning: false,
+        ...action.payload
+      };
+    case "SET_RESULT":
+      return {
+        ...state,
+        ...action.payload
+      };
+    case "RESET":
+      return {
+        ...initialScanState,
+        ...action.payload
+      };
+    default:
+      return state;
+  }
+}
 
 type OcrWorker = {
   recognize: (image: HTMLCanvasElement) => Promise<{ data?: { text?: string; confidence?: number } }>;
@@ -36,25 +115,6 @@ type SerialScannerPanelProps = {
   digitBounds: OcrDigitBounds;
   onDetected: (result: { serialDigits: string; confidence: number; quality: number }) => void;
   onClose: () => void;
-};
-
-type Candidate = {
-  serial: string;
-  confidence: number;
-  quality: number;
-  score: number;
-  zoneLabel: string;
-  regionIndex: number;
-};
-
-type CandidateVote = Candidate & {
-  votes: number;
-  firstSeenAt: number;
-};
-
-type OcrSizeProfile = {
-  tier: DeviceTier;
-  maxDigits: number;
 };
 
 const GUIDE_KEY = "numicheck_scan_guide_seen_v1";
@@ -74,9 +134,6 @@ const PRECAPTURE_WARMUP_FRAMES = 1;
 const PRECAPTURE_FRAME_DELAY_MS = 18;
 const BURST_CAPTURE_ATTEMPTS = 2;
 const PASS_TWO_CAPTURE_ATTEMPTS = 1;
-const OCR_QUALITY_CONFIDENCE_BOOST_FACTOR = 0.12;
-const OCR_FULL_LENGTH_BONUS = 10;
-const OCR_ALMOST_FULL_LENGTH_BONUS = 6;
 const OCR_CANDIDATE_LIMIT = 5;
 const VOTE_ACCEPT_MIN_HITS = 1;
 const FALLBACK_FINAL_PASSES = 1;
@@ -87,59 +144,11 @@ const AUTO_CAPTURE_MIN_BRIGHTNESS = 45;
 const AUTO_CAPTURE_MAX_BRIGHTNESS = 238;
 const AUTO_CAPTURE_STABLE_FRAMES = 1;
 const AUTO_CAPTURE_COOLDOWN_MS = 850;
-const ADAPTIVE_DELAY_MIN_MS = 16;
-const ADAPTIVE_DELAY_MAX_MS = 54;
 const PRIMARY_ZONE_BY_DENOMINATION: Record<ScannerDenomination, string> = {
   "10": "Zona superior",
   "20": "Zona superior",
   "50": "Zona inferior"
 };
-
-function getTierScale(tier: DeviceTier, mode: "quick" | "deep") {
-  if (mode === "quick") {
-    if (tier === "high") {
-      return 0.5;
-    }
-
-    if (tier === "low") {
-      return 0.58;
-    }
-
-    return 0.54;
-  }
-
-  if (tier === "high") {
-    return 0.68;
-  }
-
-  if (tier === "low") {
-    return 0.8;
-  }
-
-  return 0.74;
-}
-
-function getOcrTargetSize(
-  regionWidth: number,
-  regionHeight: number,
-  mode: "quick" | "deep",
-  profile: OcrSizeProfile
-) {
-  const lengthAdjust = profile.maxDigits >= 9 ? 1 : 0.92;
-  const scale = getTierScale(profile.tier, mode) * lengthAdjust;
-
-  if (mode === "quick") {
-    const width = Math.max(210, Math.min(360, Math.round(regionWidth * scale)));
-    const ratio = width / Math.max(1, regionWidth);
-    const height = Math.max(56, Math.min(112, Math.round(regionHeight * ratio)));
-    return { width, height };
-  }
-
-  const width = Math.max(280, Math.min(520, Math.round(regionWidth * scale)));
-  const ratio = width / Math.max(1, regionWidth);
-  const height = Math.max(78, Math.min(170, Math.round(regionHeight * ratio)));
-  return { width, height };
-}
 
 function getQuickRegionsForDenomination(
   denomination: ScannerDenomination,
@@ -172,236 +181,6 @@ function getCandidateSerial(candidate: Candidate | null) {
   return candidate ? candidate.serial : "";
 }
 
-function hammingDistance(left: string, right: string) {
-  if (left.length !== right.length) {
-    return Number.POSITIVE_INFINITY;
-  }
-
-  let diff = 0;
-  for (let index = 0; index < left.length; index += 1) {
-    if (left[index] !== right[index]) {
-      diff += 1;
-    }
-  }
-
-  return diff;
-}
-
-function buildConsensusSerial(candidates: CandidateVote[]) {
-  const first = candidates[0];
-  if (!first) {
-    return "";
-  }
-
-  const length = first.serial.length;
-  let serial = "";
-
-  for (let digitIndex = 0; digitIndex < length; digitIndex += 1) {
-    const counts = new Map<string, number>();
-
-    candidates.forEach((candidate) => {
-      const digit = candidate.serial[digitIndex] ?? "";
-      if (!digit) {
-        return;
-      }
-
-      counts.set(digit, (counts.get(digit) ?? 0) + Math.max(1, candidate.votes));
-    });
-
-    let bestDigit = first.serial[digitIndex] ?? "";
-    let bestCount = -1;
-    counts.forEach((count, digit) => {
-      if (count > bestCount) {
-        bestCount = count;
-        bestDigit = digit;
-      }
-    });
-
-    serial += bestDigit;
-  }
-
-  return serial;
-}
-
-function chooseBestCandidateFromVotes(voteMap: Map<string, CandidateVote>) {
-  if (voteMap.size === 0) {
-    return null;
-  }
-
-  const raw = Array.from(voteMap.values());
-  if (raw.length === 1) {
-    return raw[0] ?? null;
-  }
-
-  const fuzzyMerged: CandidateVote[] = [];
-
-  raw.forEach((anchor) => {
-    const cluster = raw.filter((candidate) => hammingDistance(anchor.serial, candidate.serial) <= 1);
-
-    if (cluster.length <= 1) {
-      fuzzyMerged.push(anchor);
-      return;
-    }
-
-    const totalVotes = cluster.reduce((sum, item) => sum + item.votes, 0);
-    const weightedConfidence = Math.round(
-      cluster.reduce((sum, item) => sum + item.confidence * item.votes, 0) / Math.max(1, totalVotes)
-    );
-    const weightedQuality = Math.round(
-      cluster.reduce((sum, item) => sum + item.quality * item.votes, 0) / Math.max(1, totalVotes)
-    );
-    const weightedScore =
-      cluster.reduce((sum, item) => sum + item.score * item.votes, 0) / Math.max(1, totalVotes) + totalVotes * 2.5;
-    const consensusSerial = buildConsensusSerial(cluster);
-    const representative = [...cluster].sort((a, b) => b.votes - a.votes || b.score - a.score)[0] ?? anchor;
-    const firstSeenAt = Math.min(...cluster.map((item) => item.firstSeenAt));
-
-    fuzzyMerged.push({
-      serial: consensusSerial || anchor.serial,
-      confidence: clamp(weightedConfidence + Math.min(8, totalVotes), MIN_CONFIDENCE, 99),
-      quality: clamp(weightedQuality, 0, 100),
-      score: weightedScore,
-      zoneLabel: representative.zoneLabel,
-      regionIndex: representative.regionIndex,
-      votes: totalVotes,
-      firstSeenAt
-    });
-  });
-
-  const deduped = new Map<string, CandidateVote>();
-  fuzzyMerged.forEach((candidate) => {
-    const existing = deduped.get(candidate.serial);
-    if (!existing || candidate.votes > existing.votes || candidate.score > existing.score) {
-      deduped.set(candidate.serial, candidate);
-    }
-  });
-
-  const ordered = Array.from(deduped.values()).sort((a, b) => {
-    if (b.votes !== a.votes) {
-      return b.votes - a.votes;
-    }
-
-    if (b.score !== a.score) {
-      return b.score - a.score;
-    }
-
-    if (b.confidence !== a.confidence) {
-      return b.confidence - a.confidence;
-    }
-
-    return a.firstSeenAt - b.firstSeenAt;
-  });
-
-  return ordered[0] ?? null;
-}
-
-function computeOtsuThresholdFromRgba(data: Uint8ClampedArray, sampleStride = 2) {
-  const histogram = new Uint32Array(256);
-  const stride = Math.max(1, Math.trunc(sampleStride));
-  const step = stride * 4;
-  let totalPixels = 0;
-
-  let total = 0;
-  for (let index = 0; index < data.length; index += step) {
-    const luma = ((data[index] * 77 + data[index + 1] * 150 + data[index + 2] * 29) >> 8) & 0xff;
-    histogram[luma] += 1;
-    total += luma;
-    totalPixels += 1;
-  }
-
-  if (totalPixels <= 0) {
-    return 128;
-  }
-
-  let sumBackground = 0;
-  let weightBackground = 0;
-  let bestBetweenVariance = 0;
-  let threshold = 128;
-
-  for (let tone = 0; tone < 256; tone += 1) {
-    weightBackground += histogram[tone];
-    if (weightBackground === 0) {
-      continue;
-    }
-
-    const weightForeground = totalPixels - weightBackground;
-    if (weightForeground <= 0) {
-      break;
-    }
-
-    sumBackground += tone * histogram[tone];
-    const meanBackground = sumBackground / weightBackground;
-    const meanForeground = (total - sumBackground) / weightForeground;
-    const betweenVariance = weightBackground * weightForeground * (meanBackground - meanForeground) ** 2;
-
-    if (betweenVariance > bestBetweenVariance) {
-      bestBetweenVariance = betweenVariance;
-      threshold = tone;
-    }
-  }
-
-  return threshold;
-}
-
-function drawRegionForOcr(
-  frameCanvas: HTMLCanvasElement,
-  targetCanvas: HTMLCanvasElement,
-  region: { left: number; top: number; width: number; height: number },
-  mode: "quick" | "deep",
-  sizeProfile: OcrSizeProfile,
-  applyAdaptiveThreshold: boolean
-) {
-  const context = targetCanvas.getContext("2d", { willReadFrequently: true });
-  if (!context) {
-    throw new Error("No se pudo preparar el contexto OCR.");
-  }
-
-  const size = getOcrTargetSize(region.width, region.height, mode, sizeProfile);
-  targetCanvas.width = size.width;
-  targetCanvas.height = size.height;
-
-  context.imageSmoothingEnabled = mode === "deep";
-  context.filter = mode === "quick" ? "grayscale(1) contrast(1.6) brightness(1.05)" : "grayscale(1) contrast(2.05) brightness(1.08)";
-  context.drawImage(
-    frameCanvas,
-    region.left,
-    region.top,
-    region.width,
-    region.height,
-    0,
-    0,
-    size.width,
-    size.height
-  );
-  context.filter = "none";
-
-  if (mode === "deep" && applyAdaptiveThreshold) {
-    const image = context.getImageData(0, 0, size.width, size.height);
-    const data = image.data;
-    const threshold = computeOtsuThresholdFromRgba(data, sizeProfile.tier === "high" ? 3 : 2);
-    const high = Math.min(255, threshold + 18);
-    const low = Math.max(0, threshold - 18);
-    const span = Math.max(1, high - low);
-
-    for (let i = 0; i < data.length; i += 4) {
-      const gray = data[i] * 0.3 + data[i + 1] * 0.59 + data[i + 2] * 0.11;
-      let boosted = 0;
-      if (gray >= high) {
-        boosted = 255;
-      } else if (gray <= low) {
-        boosted = 0;
-      } else {
-        boosted = Math.round(((gray - low) / span) * 255);
-      }
-      data[i] = boosted;
-      data[i + 1] = boosted;
-      data[i + 2] = boosted;
-    }
-
-    context.putImageData(image, 0, 0);
-  }
-}
-
 function delay(ms: number) {
   return new Promise<void>((resolve) => {
     window.setTimeout(resolve, ms);
@@ -410,46 +189,6 @@ function delay(ms: number) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
-}
-
-function getAdaptiveBurstDelay(avgOcrMs: number, readHitDelayMs: number) {
-  const raw = Math.round(avgOcrMs * 0.22 + readHitDelayMs * 0.28);
-  return clamp(raw, ADAPTIVE_DELAY_MIN_MS, ADAPTIVE_DELAY_MAX_MS);
-}
-
-function shiftRegion(
-  region: { left: number; top: number; width: number; height: number },
-  frameWidth: number,
-  frameHeight: number,
-  horizontalOffsetPercent: number
-) {
-  const shift = Math.round(region.width * horizontalOffsetPercent);
-  const left = clamp(region.left + shift, 0, Math.max(0, frameWidth - region.width));
-  const top = clamp(region.top, 0, Math.max(0, frameHeight - region.height));
-
-  return {
-    left,
-    top,
-    width: region.width,
-    height: region.height
-  };
-}
-
-function boostConfidenceFromQuality(
-  confidence: number,
-  quality: number,
-  candidateLength: number,
-  targetMaxDigits: number
-) {
-  let boosted = confidence + Math.round(quality * OCR_QUALITY_CONFIDENCE_BOOST_FACTOR);
-
-  if (candidateLength >= targetMaxDigits) {
-    boosted += OCR_FULL_LENGTH_BONUS;
-  } else if (candidateLength >= targetMaxDigits - 1) {
-    boosted += OCR_ALMOST_FULL_LENGTH_BONUS;
-  }
-
-  return clamp(boosted, confidence, 99);
 }
 
 async function recognizeWithTimeout(
@@ -498,7 +237,6 @@ export function SerialScannerPanel({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const qualityCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const autoQualityCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const frameCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const trackRef = useRef<MediaStreamTrack | null>(null);
@@ -511,10 +249,16 @@ export function SerialScannerPanel({
   const activeScanRunRef = useRef<number | null>(null);
   const handleScanRef = useRef<() => void>(() => undefined);
 
-  const [scanStatus, setScanStatus] = useState<ScanStatus>("starting");
-  const [statusText, setStatusText] = useState("Preparando camara...");
-  const [errorText, setErrorText] = useState("");
-  const [lastConfidence, setLastConfidence] = useState(0);
+  const [scanState, dispatchScan] = useReducer(scanReducer, initialScanState);
+  const {
+    scanStatus,
+    statusText,
+    errorText,
+    lastConfidence,
+    scanButtonMode,
+    isScanning,
+    lastScanMs
+  } = scanState;
   const [ocrProgress, setOcrProgress] = useState(0);
   const [showGuide, setShowGuide] = useState(false);
   const [qualityScore, setQualityScore] = useState(0);
@@ -522,13 +266,82 @@ export function SerialScannerPanel({
   const [zoneLabel, setZoneLabel] = useState("Zona central");
   const [torchSupported, setTorchSupported] = useState(false);
   const [torchEnabled, setTorchEnabled] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
   const [scanFlash, setScanFlash] = useState(false);
   const [restartToken, setRestartToken] = useState(0);
-  const [scanButtonMode, setScanButtonMode] = useState<"scan" | "retry">("scan");
-  const [lastScanMs, setLastScanMs] = useState<number | null>(null);
   const [sessionScanAttempts, setSessionScanAttempts] = useState(0);
   const [sessionFirstTryHits, setSessionFirstTryHits] = useState(0);
+  const setScanStatus = (nextStatus: ScanStatus) => {
+    if (nextStatus === "ready") {
+      dispatchScan({ type: "SET_READY" });
+      return;
+    }
+
+    if (nextStatus === "reading") {
+      dispatchScan({ type: "SET_SCANNING" });
+      return;
+    }
+
+    if (nextStatus === "error") {
+      dispatchScan({ type: "SET_ERROR" });
+      return;
+    }
+
+    dispatchScan({
+      type: "SET_RESULT",
+      payload: {
+        scanStatus: "starting",
+        isScanning: false
+      }
+    });
+  };
+  const setStatusText = (nextStatusText: string) => {
+    dispatchScan({
+      type: "SET_RESULT",
+      payload: {
+        statusText: nextStatusText
+      }
+    });
+  };
+  const setErrorText = (nextErrorText: string) => {
+    dispatchScan({
+      type: "SET_RESULT",
+      payload: {
+        errorText: nextErrorText
+      }
+    });
+  };
+  const setLastConfidence = (nextLastConfidence: number) => {
+    dispatchScan({
+      type: "SET_RESULT",
+      payload: {
+        lastConfidence: nextLastConfidence
+      }
+    });
+  };
+  const setScanButtonMode = (nextScanButtonMode: ScanButtonMode) => {
+    dispatchScan({
+      type: "SET_RESULT",
+      payload: {
+        scanButtonMode: nextScanButtonMode
+      }
+    });
+  };
+  const setIsScanning = (nextIsScanning: boolean) => {
+    dispatchScan({
+      type: "SET_RESULT",
+      payload: {
+        isScanning: nextIsScanning
+      }
+    });
+  };
+  const setLastScanMs = (nextLastScanMs: number | null) => {
+    dispatchScan({
+      type: "SET_RESULT",
+      payload: {
+        lastScanMs: nextLastScanMs
+      }
+    });
+  };
   const sessionFirstTryRate = useMemo(() => {
     if (sessionScanAttempts <= 0) {
       return 0;
@@ -536,10 +349,10 @@ export function SerialScannerPanel({
 
     return Math.round((sessionFirstTryHits / sessionScanAttempts) * 100);
   }, [sessionFirstTryHits, sessionScanAttempts]);
-  const isScanningRef = useLatestRef(isScanning);
-  const scanStatusRef = useLatestRef<ScanStatus>(scanStatus);
+  const isScanningRef = useLatestRef(scanState.isScanning);
+  const scanStatusRef = useLatestRef<ScanStatus>(scanState.scanStatus);
   const showGuideRef = useLatestRef(showGuide);
-  const scanButtonModeRef = useLatestRef<"scan" | "retry">(scanButtonMode);
+  const scanButtonModeRef = useLatestRef<ScanButtonMode>(scanState.scanButtonMode);
 
   const stopMedia = () => {
     const stream = streamRef.current;
@@ -950,7 +763,7 @@ export function SerialScannerPanel({
           shifted,
           mode,
           ocrSizeProfile,
-          mode === "deep" ? quality.score <= 86 : false
+          mode === "deep" ? quality.score <= 86 : quality.score <= 70
         );
 
         const ocrStart = performance.now();
@@ -968,8 +781,9 @@ export function SerialScannerPanel({
         }
 
         const text = result.data?.text ?? "";
+        const normalizedText = fixAmbiguousDigits(text);
         const rawConfidence = Math.round(result.data?.confidence ?? 0);
-        const candidates = extractSerialCandidatesFromOcr(text, digitBounds).slice(0, OCR_CANDIDATE_LIMIT);
+        const candidates = extractSerialCandidatesFromOcr(normalizedText, digitBounds).slice(0, OCR_CANDIDATE_LIMIT);
 
         if (candidates.length === 0) {
           observedConfidence = Math.max(observedConfidence, rawConfidence);
@@ -1306,13 +1120,7 @@ export function SerialScannerPanel({
 
   useEffect(() => {
     const video = videoRef.current;
-    const autoCanvas = autoQualityCanvasRef.current;
-    if (!video || !autoCanvas) {
-      return;
-    }
-
-    const autoContext = autoCanvas.getContext("2d", { willReadFrequently: true });
-    if (!autoContext) {
+    if (!video) {
       return;
     }
 
@@ -1330,6 +1138,16 @@ export function SerialScannerPanel({
         return;
       }
 
+      const sharedQualityCanvas = qualityCanvasRef.current;
+      if (!sharedQualityCanvas || isScanningRef.current) {
+        return;
+      }
+
+      const autoContext = sharedQualityCanvas.getContext("2d", { willReadFrequently: true });
+      if (!autoContext) {
+        return;
+      }
+
       if (video.videoWidth === 0 || video.videoHeight === 0) {
         return;
       }
@@ -1344,8 +1162,8 @@ export function SerialScannerPanel({
         return;
       }
 
-      autoCanvas.width = QUALITY_SAMPLE_WIDTH;
-      autoCanvas.height = QUALITY_SAMPLE_HEIGHT;
+      sharedQualityCanvas.width = QUALITY_SAMPLE_WIDTH;
+      sharedQualityCanvas.height = QUALITY_SAMPLE_HEIGHT;
       autoContext.drawImage(
         video,
         region.left,
@@ -1396,11 +1214,22 @@ export function SerialScannerPanel({
       }
     };
 
-    sampleAndTrigger();
-    const timer = window.setInterval(sampleAndTrigger, AUTO_CAPTURE_SAMPLE_INTERVAL_MS);
+    let rafId = 0;
+    let lastSampleTime = performance.now() - AUTO_CAPTURE_SAMPLE_INTERVAL_MS;
+
+    const loop = (now: number) => {
+      if (now - lastSampleTime >= AUTO_CAPTURE_SAMPLE_INTERVAL_MS) {
+        lastSampleTime = now;
+        sampleAndTrigger();
+      }
+
+      rafId = window.requestAnimationFrame(loop);
+    };
+
+    rafId = window.requestAnimationFrame(loop);
 
     return () => {
-      window.clearInterval(timer);
+      window.cancelAnimationFrame(rafId);
       autoPreviousLumaRef.current = null;
       autoStableHitsRef.current = 0;
     };
@@ -1502,7 +1331,6 @@ export function SerialScannerPanel({
 
       <canvas ref={canvasRef} className="scanner-canvas-hidden" aria-hidden="true" />
       <canvas ref={qualityCanvasRef} className="scanner-canvas-hidden" aria-hidden="true" />
-      <canvas ref={autoQualityCanvasRef} className="scanner-canvas-hidden" aria-hidden="true" />
       <canvas ref={frameCanvasRef} className="scanner-canvas-hidden" aria-hidden="true" />
 
       {showGuide ? (
